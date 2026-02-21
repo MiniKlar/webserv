@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 04:01:30 by lomont            #+#    #+#             */
-/*   Updated: 2026/02/19 04:09:49 by lomont           ###   ########.fr       */
+/*   Updated: 2026/02/21 04:11:47 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -59,4 +59,8 @@ void HeaderRequest::printDebug(void) {
 	for (std::vector<std::pair<std::string, std::string> >::iterator it = this->Map.begin(); it != this->Map.end(); it++) {
 		std::cout << it->first << " " << it->second << std::endl;
 	}
+}
+
+std::vector<std::pair<std::string, std::string> >& HeaderRequest::getPairs(void) {
+	return (this->Map);
 }

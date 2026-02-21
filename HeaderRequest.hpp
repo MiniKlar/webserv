@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 04:00:02 by lomont            #+#    #+#             */
-/*   Updated: 2026/02/19 04:08:46 by lomont           ###   ########.fr       */
+/*   Updated: 2026/02/21 04:11:56 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -35,6 +35,7 @@ class HeaderRequest
 		void ParseHeaderRequest(std::string& _header);
 		void ParseStartLine(void);
 		void printDebug(void);
+		std::vector<std::pair<std::string, std::string> >& getPairs(void);
 };
 
 #endif
