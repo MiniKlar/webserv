@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/15 23:09:55 by lomont            #+#    #+#             */
-/*   Updated: 2026/02/19 04:03:33 by lomont           ###   ########.fr       */
+/*   Updated: 2026/02/21 04:20:31 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -29,7 +29,7 @@
 #include <iostream>
 
 #include "HeaderRequest.hpp"
-
+#include "HeaderResponse.hpp"
 
 extern int errno;
 
