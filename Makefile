@@ -6,21 +6,23 @@
 #    By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2026/02/15 23:56:24 by lomont            #+#    #+#              #
-#    Updated: 2026/02/19 04:04:01 by lomont           ###   ########.fr        #
+#    Updated: 2026/03/03 01:19:58 by lomont           ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
 NAME = webserv
 
 C++ = g++-15
-CFLAGS = -Wall -Wextra -Werror #-std=c++98 -pedantic
+CFLAGS = -Wall -Wextra -Werror -std=c++98 -pedantic
 
 RM = rm -f
 
 SRC = ./main.cpp \
 	./webserv.cpp \
+	./client.cpp \
 	./HeaderRequest.cpp \
 	./HeaderResponse.cpp \
+	./utils.cpp \
 
 OBJ = $(SRC:.cpp=.o)
 
