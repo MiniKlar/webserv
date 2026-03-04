@@ -117,7 +117,7 @@
 
     // Chercher uniquement les 3 images spécifiques
     for (const name of expectedNames) {
-      const path = `/drive/${name}`;
+      const path = `/uploads/${name}`;
       try {
         const response = await fetch(path, { method: 'HEAD' });
         if (response.ok) {
@@ -131,7 +131,7 @@
     if (images.length === 0) {
       galleryStatus.innerHTML = `Aucune image trouvée.<br/>
         <strong>Noms attendus :</strong> image1.png, image2.png, image3.png<br/>
-        <strong>Dossier :</strong> /drive/`;
+        <strong>Dossier :</strong> /uploads/`;
       return;
     }
 
