@@ -6,12 +6,14 @@
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/15 23:09:55 by lomont            #+#    #+#             */
-/*   Updated: 2026/03/02 00:39:05 by lomont           ###   ########.fr       */
+/*   Updated: 2026/03/04 01:58:29 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #ifndef WEBSERV_HPP
 #define WEBSERV_HPP
+
+#define DEFAULT_CONFIGURATION_FILE "webserv.conf"
 
 #include <sys/types.h>
 #include <sys/event.h>
@@ -26,6 +28,7 @@
 #include <fcntl.h>
 #include <iostream>
 #include <map>
+#include <vector>
 #include "utils.hpp"
 
 class server
@@ -40,16 +43,29 @@ class server
 		int 				ListenServerSocket;
 		//int 				AcceptClientConnexion;
 		int					EvenementQueue;
+		size_t				serverConfigCount;
+		std::pair<std::string, int> interfacePort;
+		std::map<std::vector<int>, std::string > errorPage;
 		void fillSockaddrStruct(void);
 	public:
 		//Constructors / Destructors
 		server(void);
+		server(const std::string&);
 		~server(void);
+
 		//getters
-		struct kevent* getevent(void);
-		struct kevent* getTevent(void);
-		int&	getServerSocket(void);
-		int&	getEvenementQueue(void);
+		struct kevent* 	getevent(void);
+		struct kevent* 	getTevent(void);
+		int&			getServerSocket(void);
+		int&			getEvenementQueue(void);
+
+		//setters
+
+		//member functions
+		void 	ParseServerConfiguration(const std::string&);
+		void	ParseServerDeclaration(const std::string&);
+		void 	ConfigureServer(void);
+		size_t	GetServerConfigCount(const std::string&);
 };
 
 extern int errno;
