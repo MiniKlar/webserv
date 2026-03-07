@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/15 23:06:49 by lomont            #+#    #+#             */
-/*   Updated: 2026/03/02 00:38:49 by lomont           ###   ########.fr       */
+/*   Updated: 2026/03/07 03:37:44 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -21,16 +21,11 @@
 #include "client.hpp"
 
 int main(int argc, char** argv) {
-	(void)argv;
-	if (argc > 2) {
-		//charger fichier de configuration dans le cas où on en fourni un au programme
-
-		//problème error 141
-
-		//quitter gracefully the application
+	if (argc > 1) {
+		server webserv(argv[argc - 1]);
 		return (254);
 	}
-	server webserv;
+	server webserv(DEFAULT_CONFIGURATION_FILE);
 	std::map<int, Client*> map;
 	while (true) {
 		int socketToUse;
