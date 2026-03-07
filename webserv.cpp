@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/18 23:17:19 by lomont            #+#    #+#             */
-/*   Updated: 2026/03/04 02:12:03 by lomont           ###   ########.fr       */
+/*   Updated: 2026/03/07 03:37:02 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -34,19 +34,12 @@ void server::ParseServerConfiguration(const std::string& configurationFile) {
 	int			fd;
 	std::string	fileBuffer;
 
-	// if (configurationFile.empty())
-	// 	file = DEFAULT_CONFIGURATION_FILE;
-	// else
 	file = configurationFile.data();
 	fd = open(file, O_RDONLY);
 	if (fd == -1)
 		ft_error("Error when trying to open the configuration file", 1);
 	fileBuffer = GetFileBuffer(fd);
 	serverConfigCount = GetServerConfigCount(fileBuffer);
-	//parser chaque server config avec la même logique
-		//trouver l'acollade fermante
-		//tant qu'on est pas arrivé à la fin
-			//stocker ce qu'on trouve dans des variables (de quel type?)
 	ParseServerDeclaration(fileBuffer);
 	close(fd);
 	exit(1);
@@ -124,36 +117,52 @@ size_t server::GetServerConfigCount(const std::string& buffer) {
 	configServerCount = 0;
 	pos = 0;
 	while ((pos = buffer.find("server {", pos)) != std::string::npos) {
-			pos += 1;
+			pos += 9;
 			configServerCount++;
 	}
-	std::cout << configServerCount << std::endl;
 	return (configServerCount);
 }
 
-void server::ParseServerDeclaration(const std::string& buffer) {
-	// for (int i = 0; i < serverConfigCount; i++) {
-		// } boucle pour toutes les configurations serveurs.
-	size_t poslastaccolade = 120; //fake value, need to calculate to avoid parsing other server conf
-	size_t pos = 0;
+void server::FindOneConfiguration(const std::string& buffer, size_t pos, struct config *conf) {
 	size_t xpos = 0;
 
-	//find listen
 	pos = buffer.find("listen", pos) + 7;
 	xpos = buffer.find(":", pos);
-	interfacePort.first = buffer.substr(pos, xpos - pos);
+	conf->interfacePort.first = buffer.substr(pos, xpos - pos);
 	pos = buffer.find(";", xpos);
-	interfacePort.second = atoi(buffer.substr(xpos + 1, pos - xpos - 1).c_str());
-	std::cout << interfacePort.first << " " << interfacePort.second << std::endl;
-	//end find listen
+	conf->interfacePort.second = atoi(buffer.substr(xpos + 1, pos - xpos - 1).c_str());
+	std::cout << "IP: " << conf->interfacePort.first << " Port: " << conf->interfacePort.second << std::endl;
+}
 
-	//find errorPage
-	std::pair<std::vector<int>, std::string> p;
-	std::vector<int> v;
-	std::string chemin;
-	bool brake = false;
-	while (pos < poslastaccolade || !buffer[pos]) {
-		pos = buffer.find("error_page", pos) + 11; //on arrive après l'espace
+size_t server::SearchLastAccolade(const std::string& buffer, size_t i) {
+	size_t accoladeOpened;
+
+	accoladeOpened = 0;
+	while (buffer[i]) {
+		if (buffer[i] == '{')
+			accoladeOpened++;
+		else if (buffer[i] == '}')
+			accoladeOpened--;
+		if (accoladeOpened == 0 && buffer[i] == '}')
+			break;
+		i++;
+	}
+	return (i);
+}
+
+void server::FindErrorPages(const std::string& buffer, size_t& positionLastAccolade, size_t pos, struct config* conf) {
+	std::pair<std::vector<int>, std::string>	p;
+	std::vector<int> 							v;
+	std::string 								chemin;
+	size_t										xpos;
+	bool										brake;
+
+	brake = false;
+	while (pos < positionLastAccolade || !buffer[pos]) {
+		pos = buffer.find("error_page", pos); //on arrive après l'espace
+		if (pos == std::string::npos)
+			break;
+		pos += 11;
 		while (!brake) {
 			xpos = pos;
 			while (!isspace(buffer[pos])) {
@@ -164,7 +173,6 @@ void server::ParseServerDeclaration(const std::string& buffer) {
 				pos++;
 			}
 			if (!brake) {
-				std::cout << atoi(buffer.substr(xpos, pos - xpos).c_str()) << std::endl;
 				v.push_back(atoi(buffer.substr(xpos, pos - xpos).c_str())); // vérifier atoll?
 				pos++;
 			}
@@ -173,13 +181,246 @@ void server::ParseServerDeclaration(const std::string& buffer) {
 				if (buffer[pos] == ' ')
 					pos++;
 				chemin = buffer.substr(pos, xpos - pos);
-				pos = xpos;
+				pos = xpos + 1;
 			}
 		}
+		brake = false;
+		p.first = v;
+		p.second = chemin;
+		conf->errorPage.insert(p);
+		for (size_t it = 0; it < v.size(); it++)
+			std::cout << v[it] << std::endl;
+		std::cout << chemin << std::endl;
+		v.clear();
+		chemin.clear();
 	}
-	for (size_t it = 0; it < v.size(); it++) {
-		std::cout << v[it] << std::endl;
+}
+
+void server::FindMaxBody(const std::string& buffer, struct config* conf) {
+		size_t	pos;
+		size_t	xpos;
+
+		pos = buffer.find("client", 0);
+		xpos = buffer.find(";", pos);
+		pos += 21;
+		std::string sizeMax = buffer.substr(pos, xpos - pos);
+		std::cout << sizeMax << std::endl;
+		char c = sizeMax[sizeMax.length() - 1];
+		conf->maxBodySize = strtol(sizeMax.c_str(), NULL, 10);
+		int sizeMemory;
+		switch (c)
+		{
+		case 'K':
+			sizeMemory = 1024;
+			break;
+		case 'M':
+			sizeMemory = 1024 * 1024;
+			break;
+		case 'G' :
+			sizeMemory = 1024 * 1024 * 1024;
+			break;
+		default:
+			ft_error("size memory error", 35);
+			break;
+		}
+		conf->maxBodySize *= sizeMemory;
+		std::cout << conf->maxBodySize << std::endl;
+}
+
+size_t FindNumbersOfLocation(const std::string& buffer, size_t positionLastAccolade, size_t pos) {
+	size_t i;
+
+	i = 0;
+	while ((pos = buffer.find("location", pos)) <= positionLastAccolade) {
+		pos += 9;
+		i++;
+	};
+	return (i);
+}
+
+size_t server::FindMethods(const std::string& buffer, size_t pos, struct LocationConfig* conf, size_t& border) {
+	size_t tmp = pos;
+	size_t	xpos;
+	size_t	ypos;
+
+	if ((pos = buffer.find("methods", pos)) > border)
+		return tmp;
+	pos += 8;
+	xpos = buffer.find(";", pos);
+	while (pos <= xpos) {
+		ypos = buffer.find(" ", pos);
+		if (ypos > border)
+			ypos = xpos;
+		if (pos < border|| xpos < border)
+			conf->methods.push_back(buffer.substr(pos, ypos - pos));
+		pos = ypos + 1;
 	}
-	std::cout << chemin << std::endl;
-	exit(1);
+	return pos;
+}
+
+size_t server::FindRoot(const std::string& buffer, size_t pos, struct LocationConfig* conf, size_t& border) {
+	size_t tmp = pos;
+	size_t	xpos;
+
+	if ((pos = buffer.find("root", pos)) > border)
+		return tmp;
+	pos += 5;
+	xpos = buffer.find(";", pos);
+	conf->root = buffer.substr(pos, xpos - pos);
+	return pos;
+}
+
+size_t server::FindIndex(const std::string& buffer, size_t pos, struct LocationConfig* conf, size_t& border) {
+	size_t tmp = pos;
+	size_t	xpos;
+	size_t	ypos;
+
+	if ((pos = buffer.find(" index", pos)) > border)
+		return tmp;
+	pos += 6;
+	xpos = buffer.find(";", pos);
+	while (pos <= xpos) {
+		ypos = buffer.find(" ", pos);
+		if (ypos > border)
+			ypos = xpos;
+		if (pos < border|| xpos < border)
+			conf->index.push_back(buffer.substr(pos, ypos - pos));
+		pos = ypos + 1;
+	}
+	return pos;
+}
+
+size_t server::FindAutoIndex(const std::string& buffer, size_t pos, struct LocationConfig* conf, size_t& border) {
+	size_t tmp = pos;
+	size_t	xpos;
+
+	if ((pos = buffer.find("autoindex", pos)) > border)
+		return tmp;
+	pos = pos + 9;
+	xpos = buffer.find(";", pos);
+	if (buffer.find("on", xpos - pos) < border)
+		conf->autoindex = true;
+	else
+		conf->autoindex = false;
+	return pos;
+}
+
+size_t server::FindReturn(const std::string& buffer, size_t pos, struct LocationConfig* conf, size_t& border) {
+	size_t tmp = pos;
+	size_t	xpos;
+
+	if ((pos = buffer.find("return", pos)) > border)
+		return tmp;
+	pos += 7;
+	xpos = buffer.find(" ", pos);
+	conf->_return.first = buffer.substr(pos, xpos - pos);
+	pos = xpos + 1;
+	xpos = buffer.find(";", pos);
+	conf->_return.second = buffer.substr(pos, xpos - pos);
+	return pos;
+}
+
+size_t server::FindUpload(const std::string& buffer, size_t pos, struct LocationConfig* conf, size_t& border) {
+	size_t tmp = pos;
+	size_t	xpos;
+
+	if ((pos = buffer.find("upload_store", pos)) > border)
+		return tmp;
+	pos += 13;
+	xpos = buffer.find(";", pos);
+	conf->upload_store = buffer.substr(pos, xpos - pos);
+	return pos;
+}
+
+size_t server::FindCGIPass(const std::string& buffer, size_t pos, struct LocationConfig* conf, size_t& border) {
+	size_t tmp = pos;
+	size_t	xpos;
+
+	if ((pos = buffer.find("cgi_pass", pos)) > border)
+		return tmp;
+	if ((pos = buffer.find(".php", pos)) > border)
+		return tmp;
+	pos += 5;
+	xpos = buffer.find(";", pos);
+	conf->pathPHPexecutable = buffer.substr(pos, xpos - pos);
+	return pos;
+}
+
+void server::printConfig(struct LocationConfig* conf) {
+	std::cout << "location: \"" << conf->location << "\"" << std::endl;
+	std::cout << "methods: " << std::endl;
+	for (std::vector<std::string>::iterator it = conf->methods.begin(); it != conf->methods.end(); it++)
+		std::cout << *it << " ";
+	std::cout << std::endl;
+	std::cout << "root: " << conf->root << std::endl;
+	std::cout << "upload_store: " << conf->upload_store << std::endl;
+	std::cout << "index: ";
+	for (std::vector<std::string>::iterator it = conf->index.begin(); it != conf->index.end(); it++)
+		std::cout << *it << " ";
+	std::cout << std::endl;
+	std::cout << "autoindex: " << conf->autoindex;
+	std::cout << std::endl;
+	std::cout << "return: " << conf->_return.first << " " << conf->_return.second << std::endl;
+	std::cout << "path PHP executable: " << conf->pathPHPexecutable << std::endl;
+	std::cout << "------------------------" << std::endl;
+}
+
+void server::FindLocation(const std::string& buffer, size_t& positionLastAccolade, size_t& index, size_t pos) {
+	size_t	positionFirstAccolade;
+	size_t	positionLastAccoladeLocation;
+	size_t	numberOfLocation;
+	size_t i = 0;
+	struct LocationConfig* ptr;
+
+	std::cout << pos << std::endl;
+	if ((pos = buffer.find("location", pos)) == std::string::npos)
+		ft_error("parsing config file [no location found]", 40);
+	numberOfLocation = FindNumbersOfLocation(buffer, positionLastAccolade, pos);
+	config[index].locationConfig = new LocationConfig[numberOfLocation];
+	while (pos <= positionLastAccolade) {
+		ptr = &config[index].locationConfig[i];
+		//parse la location
+		positionFirstAccolade = buffer.find("{", pos);
+		positionLastAccoladeLocation = buffer.find("}", positionFirstAccolade);
+		pos += 9;
+		ptr->location = buffer.substr(pos, positionFirstAccolade - pos - 1);
+		//parse les méthods
+		FindMethods(buffer, pos, ptr, positionLastAccoladeLocation);
+		//parse le root
+		FindRoot(buffer, pos, ptr, positionLastAccoladeLocation);
+		//parse l'index
+		FindIndex(buffer, pos, ptr, positionLastAccoladeLocation);
+		//parse autoindex
+		FindAutoIndex(buffer, pos, ptr, positionLastAccoladeLocation);
+		//parse upload store
+		FindUpload(buffer, pos, ptr, positionLastAccoladeLocation);
+		//parse return
+		FindReturn(buffer, pos, ptr, positionLastAccoladeLocation);
+		//parse cgi_pass
+		FindCGIPass(buffer, pos, ptr, positionLastAccoladeLocation);
+		//on cherche le prochain "location"
+		printConfig(ptr);
+		if ((pos = buffer.find("location", pos)) == std::string::npos)
+			break;
+		i++;
+	}
+}
+
+void server::ParseServerDeclaration(const std::string& buffer) {
+	size_t	positionLastAccolade;
+	size_t	pos;
+
+	positionLastAccolade = 0;
+	config = new struct config[serverConfigCount];
+	for (size_t i = 0; i < serverConfigCount; i++) {
+		std::cout << "count = "<< serverConfigCount << std::endl;
+		pos = positionLastAccolade;
+		positionLastAccolade = SearchLastAccolade(buffer, positionLastAccolade);
+		FindOneConfiguration(buffer, pos, &config[i]);
+		FindErrorPages(buffer, positionLastAccolade, pos, &config[i]);
+		FindMaxBody(buffer, &config[i]);
+		FindLocation(buffer, positionLastAccolade, i, pos);
+		positionLastAccolade += 1;
+		//std::cout << "End of one server configuration" << std::endl;
+	}
 }
