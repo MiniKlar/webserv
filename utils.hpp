@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/26 21:15:26 by lomont            #+#    #+#             */
-/*   Updated: 2026/03/03 01:37:50 by lomont           ###   ########.fr       */
+/*   Updated: 2026/03/07 22:26:41 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -18,7 +18,8 @@
 #include <string>
 #include <cstdlib>
 
-void		ft_error(const std::string&, int);
+void		ft_error(const std::string& str);
+void		ft_crash(const std::string&, int);
 void		logs(const std::string&);
 void		warning();
 
