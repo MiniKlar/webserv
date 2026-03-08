@@ -6,20 +6,38 @@
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 04:01:30 by lomont            #+#    #+#             */
-/*   Updated: 2026/03/03 01:53:23 by lomont           ###   ########.fr       */
+/*   Updated: 2026/03/08 03:31:44 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "HeaderRequest.hpp"
 
-HeaderRequest::HeaderRequest(std::string bufferHeader, std::string bufferBody) {
-	ParseHeaderRequest(bufferHeader, bufferBody);
+HeaderRequest::HeaderRequest(std::string bufferHeader) {
+	ParseHeaderRequest(bufferHeader);
 	return ;
 }
 
 HeaderRequest::HeaderRequest(void) {
 	return ;
 }
+
+//function to parse body
+	// if (_method == POST) {
+	// 	if (!bufferBody.empty()) {
+	// 		std::string boundary;
+	// 		size_t posboundary;
+	// 		size_t endboundary;
+	// 		//Content-Type: multipart/form-data; boundary=----geckoformboundarye4f3cf8d9bb9dca8928f017894d523c8
+	// 		posboundary = bufferHeader.find("boundary=") + 9;
+	// 		endboundary = bufferHeader.find("\r\n", posboundary);
+	// 		boundary = "--" + bufferHeader.substr(posboundary, endboundary - posboundary);
+	// 		CreateImage(bufferBody, boundary);
+	// 	}
+	// 	else {
+	// 		//renvoyer une réponse erreur...
+	// 		;
+	// 	}
+	// }
 
 HeaderRequest::HeaderRequest(const HeaderRequest& other) {
 	*this = other;
@@ -87,13 +105,13 @@ void HeaderRequest::CreateImage(std::string& bufferBody, std::string& boundary) 
 		std::string img_filename = UPLOAD_FOLDER + FindFileName();
 		int image_fd = open(img_filename.c_str(), O_CREAT | O_TRUNC | O_WRONLY);
 		if (image_fd == -1)
-			ft_error("creating image failded", 31);
+			ft_crash("creating image failed", 31);
 		write(image_fd, image.data(), image.size());
 		close(image_fd);
 	};
 }
 
-void HeaderRequest::ParseHeaderRequest(std::string& bufferHeader, std::string& bufferBody) {
+void HeaderRequest::ParseHeaderRequest(std::string& bufferHeader) {
 	std::pair<std::string, std::string> pair;
 	std::string::iterator 				space;
 	std::string::iterator 				begin;
@@ -115,33 +133,20 @@ void HeaderRequest::ParseHeaderRequest(std::string& bufferHeader, std::string& b
 		pair.second = std::string(space + 1, end);
 		Map.insert(pair);
 	}
-	if (_method == POST) {
-		if (!bufferBody.empty()) {
-			std::string boundary;
-			size_t posboundary;
-			size_t endboundary;
-			//Content-Type: multipart/form-data; boundary=----geckoformboundarye4f3cf8d9bb9dca8928f017894d523c8
-			posboundary = bufferHeader.find("boundary=") + 9;
-			endboundary = bufferHeader.find("\r\n", posboundary);
-			boundary = "--" + bufferHeader.substr(posboundary, endboundary - posboundary);
-			CreateImage(bufferBody, boundary);
-		}
-		else {
-			//renvoyer une réponse erreur...
-			;
-		}
-	}
 }
 
 void HeaderRequest::ParseStartLine(void) {
 	std::istringstream str (_startLine);
+
 	str >> method >> _requestTarget;
 	if (method == "POST")
 		_method = POST;
 	else if (method == "GET")
 		_method = GET;
+	else if (method == "DELETE")
+		_method = DELETE;
 	else
-		_method = DELETE; //ça doit pas être delete, rajouter méthode HEAD?
+		_method = OTHER;
 }
 
 void HeaderRequest::printDebug(void) {
@@ -165,4 +170,8 @@ std::string& HeaderRequest::GetPathImageCreated(void) {
 
 Method HeaderRequest::GetMethod(void) {
 	return (this->_method);
+}
+
+void HeaderRequest::SetBody(const std::string body) {
+	this->_body = body.c_str();
 }

@@ -6,14 +6,14 @@
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 04:00:02 by lomont            #+#    #+#             */
-/*   Updated: 2026/03/03 01:38:52 by lomont           ###   ########.fr       */
+/*   Updated: 2026/03/08 02:57:32 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #ifndef HEADERREQUEST_HPP
 #define HEADERREQUEST_HPP
 
-#define UPLOAD_FOLDER "./html/drive/"
+#define UPLOAD_FOLDER "./www/uploads/"
 
 #include <iostream>
 #include <sstream>
@@ -27,7 +27,9 @@
 enum Method {
 	GET,
 	POST,
-	DELETE
+	DELETE,
+	HEAD,
+	OTHER
 };
 
 class HeaderRequest
@@ -39,14 +41,14 @@ class HeaderRequest
 		std::string											pathFileCreated;
 		std::string											method;
 		Method												_method;
-		char*												_body;
+		const char*											_body;
 	public:
 		HeaderRequest(void);
-		HeaderRequest(std::string, std::string);
+		HeaderRequest(std::string);
 		HeaderRequest(const HeaderRequest&);
 		HeaderRequest& operator=(const HeaderRequest&);
 		~HeaderRequest(void);
-		void ParseHeaderRequest(std::string&, std::string&);
+		void ParseHeaderRequest(std::string&);
 		void ParseStartLine(void);
 		void printDebug(void);
 		void CreateImage(std::string&, std::string&);
@@ -57,6 +59,9 @@ class HeaderRequest
 		std::string& GetRequestTarget(void);
 		std::string& GetPathImageCreated(void);
 		Method	GetMethod(void);
+
+		//setters
+		void	SetBody(const std::string);
 };
 
 #endif
