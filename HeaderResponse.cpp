@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 04:02:28 by lomont            #+#    #+#             */
-/*   Updated: 2026/03/03 02:28:57 by lomont           ###   ########.fr       */
+/*   Updated: 2026/03/08 03:32:05 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -17,9 +17,8 @@ HeaderResponse::HeaderResponse(HeaderRequest& setRequest) : request(setRequest) 
 
 	std::cout << request.GetMethod();
 	if (request.GetMethod() == POST) {
-		std::cout << "tu es ici" << std::endl;
 		code = CREATED;
-		std::string pathfile = "./html/drive/image1.png";
+		std::string pathfile = "./www/upload_success.html";
 		getContentLength(pathfile);
 	}
 	else {
@@ -27,10 +26,12 @@ HeaderResponse::HeaderResponse(HeaderRequest& setRequest) : request(setRequest) 
 		getContentLength(pathfile);
 		bufferFileRequested = SearchFileRequested(pathfile);
 		if (!bufferFileRequested)
-			ft_error("[CRASH] buffer empty", 28);
+			ft_crash("[CRASH] buffer empty", 28);
 		content = std::string(bufferFileRequested, fileSize);
 		delete[] bufferFileRequested;
 	}
+	empty = false;
+	CheckConnectionStatut();
 	return;
 }
 
@@ -50,12 +51,33 @@ HeaderResponse& HeaderResponse::operator=(const HeaderResponse& other) {
 		this->Map = other.Map;
 		this->stringFileSize = other.stringFileSize;
 		this->code = other.code;
+		this->deleteSocket = other.deleteSocket;
+		this->empty = other.empty;
 	}
 	return (*this);
 }
 
 HeaderResponse::~HeaderResponse(void) {
 	return;
+}
+
+std::string HeaderResponse::GetResponseHeader(void) {
+	std::string	str;
+	Code headerCode;
+	headerCode = this->GetCode();
+	switch (headerCode)
+	{
+	case OK:
+		return (code_200());
+	case CREATED:
+		return (code_201());
+	case NO_CONTENT:
+		return (code_204());
+	case NOT_FOUND:
+		return (code_404());
+	default:
+		return ("");
+	}
 }
 
 char* HeaderResponse::SearchFileRequested(std::string& pathfile) {
@@ -66,14 +88,14 @@ char* HeaderResponse::SearchFileRequested(std::string& pathfile) {
 	buffer = NULL;
 	file = open(pathfile.c_str(), O_RDONLY);
 	if (file == -1)
-		ft_error("[CRASH] can't open", 21);
+		ft_crash("[CRASH] can't open", 21);
 	buffer = new char[fileSize + 1];
 	if (!buffer)
-		ft_error("Memory allocation failed", 20);
+		ft_crash("Memory allocation failed", 20);
 	bread = read(file, buffer, fileSize);
 	if (bread <= 0) {
 		delete[] buffer;
-		ft_error("read failed", 21);
+		ft_crash("read failed", 21);
 	}
 	buffer[bread] = '\0';
 	close(file);
@@ -89,8 +111,8 @@ std::string HeaderResponse::getCurrentTime( void ) {
 	struct tm* localTime;
 	char ptr[1024];
 	currentTime = time(NULL);
-	localTime = localtime(&currentTime);
-	if (strftime(ptr, 1024, "%a, %d %b %Y %X %Z", localTime) == 0) {
+	localTime = gmtime(&currentTime);
+	if (strftime(ptr, 1024, "%a, %d %b %Y %X GMT", localTime) == 0) {
 		std::cerr << "error time" << std::endl;
 		exit(15);
 	}
@@ -103,7 +125,7 @@ void	HeaderResponse::getContentLength(std::string& pathfile) {
 	std::string size;
 	if (stat(pathfile.c_str(), &s) == -1) {
 		if (stat(PAGE_404, &s) == -1)
-			ft_error("[CRASH] PAGE_404 stat failed", 16);
+			ft_crash("[CRASH] PAGE_404 stat failed", 16);
 		code = NOT_FOUND;
 		pathfile = PAGE_404;
 	}
@@ -112,6 +134,17 @@ void	HeaderResponse::getContentLength(std::string& pathfile) {
 	fileSize = s.st_size;
 	oss << s.st_size;
 	stringFileSize = oss.str();
+}
+
+void	HeaderResponse::CheckConnectionStatut(void) {
+	std::map<std::string, std::string>& map = Map;
+	std::map<std::string, std::string>::iterator it;
+	it = Map.find("Connection:");
+	if (it != map.end()) {
+		if (it->second == "keep-alive")
+			deleteSocket = true;
+	}
+	return ;
 }
 
 std::string HeaderResponse::getConnectionStatut(void) {
@@ -137,7 +170,7 @@ std::string HeaderResponse::code_404(void) {
 
 std::string HeaderResponse::code_201(void) {
 	return ("HTTP/1.1 201 Created\r\nDate: "
-	+ this->getCurrentTime() + "\r\nServer: Webserv\r\nLocation: " + getLocation() + "Content-Type: application/json\r\nContent-Length: "
+	+ this->getCurrentTime() + "\r\nServer: Webserv\r\nLocation: " + getLocation() + "\r\nContent-Type: text/html; charset=UTF-8" + "\r\nContent-Length: "
 	+ stringFileSize + "\r\n\r\n");
 }
 
@@ -145,12 +178,18 @@ std::string HeaderResponse::code_204(void) {
 	return ("HTTP/1.1 204 No Content\r\nDate: " + this->getCurrentTime() + "\r\nServer: Webserv\r\n" + getConnectionStatut() + "\r\n\r\n");
 }
 
+std::string HeaderResponse::code_303(void) {
+	return ("HTTP/1.1 303 See Other\r\nDate: " + this->getCurrentTime() + "\r\nServer: Webserv\r\nLocation: " + getLocation() + "\r\nContent-Type: text/html; charset=UTF-8" + "\r\nContent-Length: "
+	+ stringFileSize + "\r\n\r\n");
+}
+
 std::string HeaderResponse::getLocation(void) {
-	std::string filepath = UPLOAD_LOCATION + request.GetPathImageCreated();
-	if (access(filepath.c_str(), R_OK) == 0)
-		return (filepath);
-	else
-		return ("error"); //better define the error management of access
+	return ("/upload_success.html");
+	// std::string filepath = UPLOAD_LOCATION + request.GetPathImageCreated();
+	// if (access(filepath.c_str(), R_OK) == 0)
+	// 	return (filepath);
+	// else
+	// 	return (""); //better define the error management of access
 }
 
 off_t& HeaderResponse::GetFileSize(void) {
@@ -159,6 +198,16 @@ off_t& HeaderResponse::GetFileSize(void) {
 
 Code HeaderResponse::GetCode(void) {
 	return (code);
+}
+
+bool HeaderResponse::IsEmpty(void) {
+	if (this->empty)
+		return (true);
+	return (false);
+}
+
+bool HeaderResponse::GetDeleteSocket(void) {
+	return (this->deleteSocket);
 }
 
 // HTTP/1.1 201 Created
