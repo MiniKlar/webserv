@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/15 23:09:55 by lomont            #+#    #+#             */
-/*   Updated: 2026/03/07 03:34:08 by lomont           ###   ########.fr       */
+/*   Updated: 2026/03/08 04:02:24 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,57 +14,57 @@
 #define WEBSERV_HPP
 
 #define DEFAULT_CONFIGURATION_FILE "webserv.conf"
+#define	SIZE_TEVENT 64
 
 #include <sys/types.h>
 #include <sys/event.h>
 #include <sys/time.h>
 #include <sys/socket.h>
-#include <netdb.h>
 #include <sys/errno.h>
-#include <string>
-#include <sys/types.h>
 #include <sys/uio.h>
+#include <netdb.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <string>
 #include <iostream>
 #include <map>
 #include <vector>
-#include "utils.hpp"
 #include <cstdlib>
+#include "utils.hpp"
+#include "client.hpp"
 
 struct LocationConfig {
-			std::string									location;
-			std::vector<std::string>					methods;
-			std::string									root;
-			std::string									upload_store;
-			std::vector<std::string>					index;
-			bool										autoindex;
-			std::pair<std::string, std::string> 		_return;
-			std::string									pathPHPexecutable;
+	std::string									location;
+	std::vector<std::string>					methods;
+	std::string									root;
+	std::string									upload_store;
+	std::vector<std::string>					index;
+	bool										autoindex;
+	std::pair<std::string, std::string> 		_return;
+	std::string									pathPHPexecutable;
 };
 
 struct	config {
-	std::pair<std::string, int>							interfacePort;
-	std::map<std::vector<int>, std::string >			errorPage;
-	unsigned long 										maxBodySize;
-	LocationConfig*										locationConfig;
+	std::pair<std::string, int>					interfacePort;
+	std::map<std::vector<int>, std::string >	errorPage;
+	unsigned long 								maxBodySize;
+	LocationConfig*								locationConfig;
+	size_t										numbersOfLocation;
 };
 
 class server
 {
 	private:
-		struct sockaddr_in 	sa;
+		struct sockaddr_in*	sa;
 		protoent* 			f;
-		struct kevent 		event;
-		struct kevent 		tevent;
-		int 				ServerSocket;
-		int 				BindServerSocket;
-		int 				ListenServerSocket;
-		//int 				AcceptClientConnexion;
+		struct kevent 		event; //event to monitor
+		struct kevent 		tevent[SIZE_TEVENT]; //triggered event
+		int 				*ServerSocket;
 		int					EvenementQueue;
 		size_t				serverConfigCount;
 		struct config*		config;
-		void fillSockaddrStruct(void);
+		std::map<int, Client*> map;
+		void				fillSockaddrStruct(int);
 	public:
 		//Constructors / Destructors
 		server(const std::string&);
@@ -72,13 +72,15 @@ class server
 
 		//getters
 		struct kevent* 	getevent(void);
-		struct kevent* 	getTevent(void);
-		int&			getServerSocket(void);
+		struct kevent* 	getTevent(int);
+		int				findServerSocket(uintptr_t &);
 		int&			getEvenementQueue(void);
 
 		//setters
 
 		//member functions
+		void	CreateNewClient(int&, struct sockaddr, socklen_t);
+		void	WaitForConnection(void);
 		void 	ParseServerConfiguration(const std::string&);
 		void	ParseServerDeclaration(const std::string&);
 		size_t	SearchLastAccolade(const std::string&, size_t);
@@ -89,6 +91,7 @@ class server
 		void 	ConfigureServer(void);
 		size_t	GetServerConfigCount(const std::string&);
 		void	printConfig(struct LocationConfig*);
+		Client* FindCurrentClient(int);
 
 		//parsing functions
 		size_t	FindMethods(const std::string&, size_t, struct LocationConfig*, size_t&);

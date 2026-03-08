@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/18 23:17:19 by lomont            #+#    #+#             */
-/*   Updated: 2026/03/07 03:37:02 by lomont           ###   ########.fr       */
+/*   Updated: 2026/03/08 04:07:23 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -17,16 +17,64 @@ static std::string GetFileBuffer(int fd);
 //Constructor server
 
 server::server(const std::string& configurationFile): f(getprotobyname("TCP")) {
-	if (configurationFile.empty())
-		ParseServerConfiguration(DEFAULT_CONFIGURATION_FILE);
-	else
-		ParseServerConfiguration(configurationFile);
+	ParseServerConfiguration(configurationFile);
 	ConfigureServer();
+	WaitForConnection();
 }
 
 //Destruct server
 server::~server(void) {
 	return ;
+}
+
+void server::CreateNewClient(int& newConnexion, struct sockaddr sockaddrClient, socklen_t socklenClient) {
+	Client* new_client = new Client(newConnexion); //free client
+	new_client->SetSockaddrClient(sockaddrClient);
+	new_client->SetSockLenClient(socklenClient);
+	this->map.insert(std::pair<int, Client*>(newConnexion, new_client));
+	fcntl(newConnexion, F_SETFL, O_NONBLOCK);
+	EV_SET(this->getevent(), newConnexion, EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, 0);
+	if (kevent(this->getEvenementQueue(), this->getevent(), 1, NULL, 0, NULL) == -1)
+		ft_crash("Event addition failed", 10);
+}
+
+Client* server::FindCurrentClient(int fd) {
+	std::map<int, Client*>::iterator it = this->map.find(fd);
+	if (it == map.end())
+		return (NULL); //remettre en exception ou error d'information
+	else
+		return (it->second);
+}
+
+void server::WaitForConnection(void) {
+	int					nbOfEvents;
+	int					serverSocket;
+	int					newConnexion;
+	Client*				current;
+	struct sockaddr 	sockaddrClient;
+	socklen_t 			socklenClient;
+
+	while (true) {
+		if ((nbOfEvents = kevent(this->getEvenementQueue(), NULL, 0, this->getTevent(0), SIZE_TEVENT, NULL)) == -1)
+			ft_crash("Triggered event retrieval error", 8);
+		for (int i = 0; i < nbOfEvents; i++) {
+			if ((serverSocket = this->findServerSocket(this->getTevent(i)->ident)) != -1) {
+					if ((newConnexion = accept(serverSocket, &sockaddrClient, &socklenClient)) == -1)
+						ft_crash("Couldn't accept the connection", 5);
+					else
+						CreateNewClient(newConnexion, sockaddrClient, socklenClient);
+					continue;
+			}
+			logs("ici");
+			current = FindCurrentClient(static_cast<int>(this->getTevent(i)->ident));
+			if (!current)
+				continue;
+			if (this->getTevent(i)->filter == EVFILT_READ)
+				current->receive_header(this->getTevent(i), this->getEvenementQueue());
+			else
+				current->ResponseToClient(map, this->getTevent(i), this->getEvenementQueue());
+		}
+	}
 }
 
 void server::ParseServerConfiguration(const std::string& configurationFile) {
@@ -37,12 +85,11 @@ void server::ParseServerConfiguration(const std::string& configurationFile) {
 	file = configurationFile.data();
 	fd = open(file, O_RDONLY);
 	if (fd == -1)
-		ft_error("Error when trying to open the configuration file", 1);
+		ft_crash("Error when trying to open the configuration file, please check the name of the file and the permissions", 2);
 	fileBuffer = GetFileBuffer(fd);
-	serverConfigCount = GetServerConfigCount(fileBuffer);
+	this->serverConfigCount = GetServerConfigCount(fileBuffer);
 	ParseServerDeclaration(fileBuffer);
 	close(fd);
-	exit(1);
 	return ;
 }
 
@@ -50,49 +97,62 @@ void server::ConfigureServer(void) {
 	const int opt = 1;
 	logs("Web server started");
 	if (!this->f)
-		ft_error("getprotobyname failed", 1);
-	fillSockaddrStruct();
-	ServerSocket = socket(PF_INET, SOCK_STREAM, f->p_proto);
-	if (ServerSocket == -1)
-		ft_error("socket failed", 2);
-	if (setsockopt(ServerSocket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == -1)
-		ft_error("setsockopt failed", 3);
-	BindServerSocket = bind(ServerSocket, (struct sockaddr*)&sa, sizeof(sa));
-	if (BindServerSocket == -1)
-		ft_error("bind failed", 4);
-	ListenServerSocket = listen(ServerSocket, 1);
-	if (ListenServerSocket == -1)
-		ft_error("listen creation failed", 5);
-	fcntl(ServerSocket, F_SETFL, O_NONBLOCK);
+		ft_crash("getprotobyname failed", 5);
+	ServerSocket = new int[serverConfigCount];
+	if (!ServerSocket)
+		ft_crash("Memory allocation issue for ServerSocket", 6);
 	EvenementQueue = kqueue();
 	if (EvenementQueue == -1)
-		ft_error("kqueue fd creation failed", 6);
-	EV_SET(&event, ServerSocket, EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, 0);
-	if (kevent(EvenementQueue, &event, 1, NULL, 0, NULL) == -1)
-		ft_error("kevent event addition failed", 7);
+		ft_crash("kqueue fd creation failed", 7);
+	this->sa = new struct sockaddr_in[serverConfigCount];
+	if (!this->sa)
+		ft_crash("Memory allocation issue for struct sa", 8);
+	for (size_t i = 0; i < serverConfigCount; i++) {
+		fillSockaddrStruct(i);
+		ServerSocket[i] = socket(PF_INET, SOCK_STREAM, f->p_proto);
+		if (ServerSocket[i] == -1)
+			ft_crash("Server socket creation failed", 8);
+		if (setsockopt(ServerSocket[i], SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == -1)
+			ft_crash("Setsockopt function failed", 9);
+		if (bind(ServerSocket[i], (struct sockaddr*)&this->sa[i], sizeof(this->sa[i])) == -1)
+			ft_crash("Bind function failed", 10);
+		if (listen(ServerSocket[i], SOMAXCONN) == -1)
+			ft_crash("Listen function failed", 11);
+		if (fcntl(ServerSocket[i], F_SETFL, O_NONBLOCK) == -1)
+			ft_crash("Fcntl function failed", 12);
+		EV_SET(&this->event, ServerSocket[i], EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, NULL);
+		if (kevent(EvenementQueue, &this->event, 1, NULL, 0, NULL) == -1)
+			ft_crash("kevent event addition failed", 12);
+	}
 }
 
-struct kevent* server::getTevent(void) {
-	return (&this->tevent);
+struct kevent* server::getTevent(int i) {
+	return (&this->tevent[i]);
 }
 
 struct kevent* server::getevent(void) {
 	return (&this->event);
 }
 
-int& server::getServerSocket(void) {
-	return (this->ServerSocket);
+int	server::findServerSocket(uintptr_t &ident) {
+	for (size_t i = 0; i < serverConfigCount; i++) {
+		if (static_cast<int>(ident) == ServerSocket[i]) {
+			std::cout << ServerSocket[i];
+			return (ServerSocket[i]);
+		}
+	}
+	return (-1);
 }
 
 int& server::getEvenementQueue(void) {
 	return (this->EvenementQueue);
 }
 
-void server::fillSockaddrStruct(void) {
-	memset(&sa, 0, sizeof(sa));
-	sa.sin_family = AF_INET;
-	sa.sin_port = htons(80);
-	sa.sin_addr.s_addr = htonl(INADDR_ANY);
+void server::fillSockaddrStruct(int index) {
+	memset(&sa[index], 0, sizeof(sa[index]));
+	sa[index].sin_family = AF_INET;
+	sa[index].sin_port = htons(config[index].interfacePort.second);
+	sa[index].sin_addr.s_addr = htonl(INADDR_ANY);
 }
 
 static std::string GetFileBuffer(int fd) {
@@ -102,20 +162,22 @@ static std::string GetFileBuffer(int fd) {
 
 	bread = read(fd, buffer, 4096);
 	while(bread > 0) {
-		stringBuffer.append(buffer);
+		stringBuffer.append(buffer, bread);
 		bread = read(fd, buffer, 4096);
 	}
-	if (bread == -1)
-		ft_error("Read error", 2);
+	if (bread == -1) {
+		close(fd);
+		ft_crash("Read error", 3);
+	}
 	return (stringBuffer);
 }
 
 size_t server::GetServerConfigCount(const std::string& buffer) {
-	size_t configServerCount;
 	size_t pos;
+	size_t configServerCount;
 
-	configServerCount = 0;
 	pos = 0;
+	configServerCount = 0;
 	while ((pos = buffer.find("server {", pos)) != std::string::npos) {
 			pos += 9;
 			configServerCount++;
@@ -220,7 +282,7 @@ void server::FindMaxBody(const std::string& buffer, struct config* conf) {
 			sizeMemory = 1024 * 1024 * 1024;
 			break;
 		default:
-			ft_error("size memory error", 35);
+			ft_crash("Size memory error, please choose a memory size between 'K', 'M, 'G''", 4);
 			break;
 		}
 		conf->maxBodySize *= sizeMemory;
@@ -368,15 +430,14 @@ void server::printConfig(struct LocationConfig* conf) {
 void server::FindLocation(const std::string& buffer, size_t& positionLastAccolade, size_t& index, size_t pos) {
 	size_t	positionFirstAccolade;
 	size_t	positionLastAccoladeLocation;
-	size_t	numberOfLocation;
 	size_t i = 0;
 	struct LocationConfig* ptr;
 
 	std::cout << pos << std::endl;
 	if ((pos = buffer.find("location", pos)) == std::string::npos)
-		ft_error("parsing config file [no location found]", 40);
-	numberOfLocation = FindNumbersOfLocation(buffer, positionLastAccolade, pos);
-	config[index].locationConfig = new LocationConfig[numberOfLocation];
+		ft_crash("parsing config file [no location found]", 5);
+	config[index].numbersOfLocation = FindNumbersOfLocation(buffer, positionLastAccolade, pos);
+	config[index].locationConfig = new LocationConfig[config[index].numbersOfLocation];
 	while (pos <= positionLastAccolade) {
 		ptr = &config[index].locationConfig[i];
 		//parse la location
@@ -413,7 +474,6 @@ void server::ParseServerDeclaration(const std::string& buffer) {
 	positionLastAccolade = 0;
 	config = new struct config[serverConfigCount];
 	for (size_t i = 0; i < serverConfigCount; i++) {
-		std::cout << "count = "<< serverConfigCount << std::endl;
 		pos = positionLastAccolade;
 		positionLastAccolade = SearchLastAccolade(buffer, positionLastAccolade);
 		FindOneConfiguration(buffer, pos, &config[i]);
