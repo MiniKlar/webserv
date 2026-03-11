@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 04:00:02 by lomont            #+#    #+#             */
-/*   Updated: 2026/03/08 02:57:32 by lomont           ###   ########.fr       */
+/*   Updated: 2026/03/09 23:38:29 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -24,44 +24,60 @@
 #include <unistd.h>
 #include "utils.hpp"
 
+enum Error {
+	OK = 0,
+	BAD_REQUEST = 400,
+	NOT_FOUND = 404,
+	NOT_ALLOWED = 405,
+	LENGTH = 411,
+	INTERNAL = 500,
+	NOT_IMPLEMENTED = 501,
+	VERSION = 505
+};
+
 enum Method {
 	GET,
 	POST,
 	DELETE,
-	HEAD,
 	OTHER
 };
 
 class HeaderRequest
 {
 	private:
-		std::map<std::string, std::string>					Map;
-		std::string 										_startLine;
-		std::string 										_requestTarget;
-		std::string											pathFileCreated;
-		std::string											method;
-		Method												_method;
-		const char*											_body;
+		Method												method;
+		std::map<std::string, std::string>					headerPair;
+		const char*											body;
+		Error												error;
 	public:
-		HeaderRequest(void);
+		//constructors
+		HeaderRequest();
+		HeaderRequest(Error err);
 		HeaderRequest(std::string);
+
+		//Copy constructor & assignment operator
 		HeaderRequest(const HeaderRequest&);
 		HeaderRequest& operator=(const HeaderRequest&);
+
+		//Destructor
 		~HeaderRequest(void);
+
+		//Member functions
 		void ParseHeaderRequest(std::string&);
-		void ParseStartLine(void);
+		void ParseFirstLine(std::string&);
 		void printDebug(void);
 		void CreateImage(std::string&, std::string&);
 		std::string FindFileName(void);
 
 		//getters
 		std::map<std::string, std::string>& getPairs(void);
-		std::string& GetRequestTarget(void);
-		std::string& GetPathImageCreated(void);
-		Method	GetMethod(void);
+		Method								GetMethod(void);
+		Error								GetError(void);
 
 		//setters
 		void	SetBody(const std::string);
+		void	SetMethod(std::string&);
+		void	SetError(Error err);
 };
 
 #endif
