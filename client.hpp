@@ -7,6 +7,8 @@
 #include "HeaderResponse.hpp"
 #include "utils.hpp"
 
+struct config;
+
 class Client
 {
 	private:
@@ -18,11 +20,15 @@ class Client
 			std::string			headerBody;
 			HeaderRequest		_request;
 			HeaderResponse		_response;
-			int					bytesSent;
+			ssize_t				bytesSent;
 			bool				headerFound;
 	public:
+		//constructor
 		Client(int);
+
+		//destructor
 		~Client(void);
+
 		//getters
 		struct sockaddr* 		getsockaddrClient(void);
 		socklen_t*				getSockLenClient(void);
@@ -32,9 +38,14 @@ class Client
 		void					SetSockLenClient(socklen_t);
 
 		//member functions
-		void					receive_header(struct kevent*, int&);
-		int						receive_body(void);
-		void					ResponseToClient(std::map<int, Client*>&, struct kevent*, int&);
+		void					ReceiveHeader(int&);
+		int						ReceiveBody(int&);
+		void					ResponseToClient(std::map<int, Client*>&, int&, struct config*);
+		void					ChangeKeventState(int&, bool);
+		void					InternalError(int&);
+		bool					CheckErrors(std::string&);
+		void					CloseConnection(std::map<int, Client*>&);
+		void					ResizeBuffer(std::string&);
 };
 
 #endif
