@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/18 23:17:19 by lomont            #+#    #+#             */
-/*   Updated: 2026/03/08 04:07:23 by lomont           ###   ########.fr       */
+/*   Updated: 2026/03/10 03:15:51 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -28,7 +28,7 @@ server::~server(void) {
 }
 
 void server::CreateNewClient(int& newConnexion, struct sockaddr sockaddrClient, socklen_t socklenClient) {
-	Client* new_client = new Client(newConnexion); //free client
+	Client* new_client = new Client(newConnexion); //need free client/
 	new_client->SetSockaddrClient(sockaddrClient);
 	new_client->SetSockLenClient(socklenClient);
 	this->map.insert(std::pair<int, Client*>(newConnexion, new_client));
@@ -54,25 +54,29 @@ void server::WaitForConnection(void) {
 	struct sockaddr 	sockaddrClient;
 	socklen_t 			socklenClient;
 
-	while (true) {
-		if ((nbOfEvents = kevent(this->getEvenementQueue(), NULL, 0, this->getTevent(0), SIZE_TEVENT, NULL)) == -1)
+	while (true) { //laisser tourner le serveur tout le temps
+		if ((nbOfEvents = kevent(this->getEvenementQueue(), NULL, 0, this->getTevent(0), SIZE_TEVENT, NULL)) == -1) //si on recoit -1 de kevent alors crash => on stock dans nbOfEvents
 			ft_crash("Triggered event retrieval error", 8);
-		for (int i = 0; i < nbOfEvents; i++) {
-			if ((serverSocket = this->findServerSocket(this->getTevent(i)->ident)) != -1) {
-					if ((newConnexion = accept(serverSocket, &sockaddrClient, &socklenClient)) == -1)
+		std::cout << nbOfEvents << std::endl;
+		for (int i = 0; i < nbOfEvents; i++) { //pour nombres d'events triggered
+			if ((serverSocket = this->findServerSocket(this->getTevent(i)->ident)) != -1) { // si event est un serveur socket
+				std::cout << "serverSocket = " << serverSocket << std::endl;
+					if ((newConnexion = accept(serverSocket, &sockaddrClient, &socklenClient)) == -1) //si accept fail -> crash
 						ft_crash("Couldn't accept the connection", 5);
 					else
-						CreateNewClient(newConnexion, sockaddrClient, socklenClient);
+						CreateNewClient(newConnexion, sockaddrClient, socklenClient); //sinon on crée un nouveau client qui aura pour fd le accept
 					continue;
 			}
-			logs("ici");
-			current = FindCurrentClient(static_cast<int>(this->getTevent(i)->ident));
-			if (!current)
-				continue;
-			if (this->getTevent(i)->filter == EVFILT_READ)
-				current->receive_header(this->getTevent(i), this->getEvenementQueue());
-			else
-				current->ResponseToClient(map, this->getTevent(i), this->getEvenementQueue());
+			else {
+				current = FindCurrentClient(static_cast<int>(this->getTevent(i)->ident)); //on cherche le client associé au fd retourné par kevent => ce qui veut dire qu'un client nous a contacté
+				if (!current) //si on a rien on continue
+					continue;
+				if (this->getTevent(i)->filter == EVFILT_READ)
+					current->ReceiveHeader(this->getEvenementQueue());
+				else {
+					current->ResponseToClient(map, this->getEvenementQueue(), this->config);
+				}
+			}
 		}
 	}
 }
@@ -460,7 +464,7 @@ void server::FindLocation(const std::string& buffer, size_t& positionLastAccolad
 		//parse cgi_pass
 		FindCGIPass(buffer, pos, ptr, positionLastAccoladeLocation);
 		//on cherche le prochain "location"
-		printConfig(ptr);
+		//printConfig(ptr);
 		if ((pos = buffer.find("location", pos)) == std::string::npos)
 			break;
 		i++;

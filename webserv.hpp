@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/15 23:09:55 by lomont            #+#    #+#             */
-/*   Updated: 2026/03/08 04:02:24 by lomont           ###   ########.fr       */
+/*   Updated: 2026/03/10 03:16:23 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -33,6 +33,8 @@
 #include "utils.hpp"
 #include "client.hpp"
 
+struct Client;
+
 struct LocationConfig {
 	std::string									location;
 	std::vector<std::string>					methods;
@@ -48,7 +50,7 @@ struct	config {
 	std::pair<std::string, int>					interfacePort;
 	std::map<std::vector<int>, std::string >	errorPage;
 	unsigned long 								maxBodySize;
-	LocationConfig*								locationConfig;
+	struct LocationConfig*						locationConfig;
 	size_t										numbersOfLocation;
 };
 
