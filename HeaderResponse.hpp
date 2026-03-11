@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 04:02:32 by lomont            #+#    #+#             */
-/*   Updated: 2026/03/07 20:38:38 by lomont           ###   ########.fr       */
+/*   Updated: 2026/03/11 02:10:38 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,8 +14,8 @@
 #define HEADERRESPONSE_HPP
 
 #define HTML_TYPE "text/html; charset=UTF-8"
-#define PAGE_404 "./www/error.html"
-#define UPLOAD_LOCATION "./www/drive/"
+#define DEFAULT_ERROR_PAGE "./www/default_error.html"
+#define DEFAULT_UPLOAD_PATH "./www/uploads/"
 #define	FILE_LOCATION "./www"
 
 #include <ctime>
@@ -30,51 +30,70 @@
 #include "HeaderRequest.hpp"
 #include "utils.hpp"
 
-enum	Code {
-	OK = 200,
-	CREATED = 201,
-	NO_CONTENT = 204,
-	NOT_FOUND = 404,
-	SEE_OTHER = 303
-};
+struct config;
 
 class HeaderResponse
 {
 	private:
 		HeaderRequest	request;
-		std::map<std::string, std::string>	Map;
-		off_t			fileSize;
-		std::string		stringFileSize;
-		std::string		content;
-		enum Code		code;
-		bool			empty;
-		bool			deleteSocket;
+		struct config	*config;
+		std::string		buffer;
+		std::string		bodySizePrint;
+		off_t			bodySize;
+		std::string		pathfile;
+		size_t			indexLocationConfig;
+		bool			error;
+		// std::map<std::string, std::string>	Map;
+		// off_t			bufferSize;
+		// std::string		stringFileSize;
+		// std::string		content;
+		// bool			empty;
+		// bool			deleteSocket;
 	public:
 		HeaderResponse(void);
 		HeaderResponse(const HeaderResponse&);
-		HeaderResponse(HeaderRequest&);
+		HeaderResponse(HeaderRequest&, struct config*);
 		HeaderResponse& operator=(const HeaderResponse&);
 		~HeaderResponse(void);
-		char*		SearchFileRequested(std::string&);
-		std::string getCurrentTime(void);
-		std::string code_200(void);
-		std::string code_201(void);
-		std::string code_204(void);
-		std::string code_303(void);
-		std::string code_404(void);
+		//char*		SearchFileRequested(std::string&);
 
-		void		CheckConnectionStatut(void);
-		std::string GetResponseHeader(void);
+		//void		CheckConnectionStatut(void);
+		std::string		GetResponseHeader(void);
 
-		//getters
-		void		getContentLength(std::string&); //setter in reality
-		std::string getContent(void);
-		std::string getConnectionStatut(void);
-		std::string getLocation(void);
-		off_t& GetFileSize(void);
-		Code GetCode(void);
-		bool	IsEmpty(void);
-		bool	GetDeleteSocket(void);
+		std::string		CheckErrors(void);
+		void			CheckMethod(void);
+		void			OpenBodyFile(void);
+
+		//bool			IsEmpty(void);
+		void			FindPath(void);
+
+		//Setters
+		void			SetBodySize(void);
+
+		//Getters
+		std::string		GetBuffer(void);
+		std::string		GetMethodAllowed(void);
+		std::string		getCurrentTime(void);
+
+		std::string 	 getLocation(void);
+		off_t& 			GetFileSize(void);
+		void			getContentLength(std::string&); //setter in reality
+		std::string 	getContent(void);
+		std::string 	getConnectionStatut(void);
+		bool			GetDeleteSocket(void);
+
+		//Response Header
+		std::string 	code_200(void);
+		std::string 	code_201(void);
+		std::string 	code_204(void);
+		std::string 	code_303(void);
+		std::string 	code_400(void);
+		std::string 	code_404(void);
+		std::string 	code_405(void);
+		std::string 	code_411(void);
+		std::string 	code_500(void);
+		std::string 	code_501(void);
+		std::string 	code_505(void);
 };
 
 #endif
