@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/26 21:15:00 by lomont            #+#    #+#             */
-/*   Updated: 2026/03/07 22:26:22 by lomont           ###   ########.fr       */
+/*   Updated: 2026/03/08 14:35:38 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -23,7 +23,7 @@ void	ft_crash(const std::string& str, int exit_code) {
 }
 
 void logs(const std::string& str) {
-	std::cout << "[LOGS] " + str << std::endl;
+	std::cout << "[LOGS] [" + str + "]" << std::endl;
 }
 
 void warning(void) {
