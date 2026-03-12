@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/15 23:09:55 by lomont            #+#    #+#             */
-/*   Updated: 2026/03/10 03:16:23 by lomont           ###   ########.fr       */
+/*   Updated: 2026/03/11 20:05:54 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -33,7 +33,7 @@
 #include "utils.hpp"
 #include "client.hpp"
 
-struct Client;
+class Client;
 
 struct LocationConfig {
 	std::string									location;

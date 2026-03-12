@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/18 23:17:19 by lomont            #+#    #+#             */
-/*   Updated: 2026/03/10 03:15:51 by lomont           ###   ########.fr       */
+/*   Updated: 2026/03/12 01:46:42 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -31,7 +31,10 @@ void server::CreateNewClient(int& newConnexion, struct sockaddr sockaddrClient, 
 	Client* new_client = new Client(newConnexion); //need free client/
 	new_client->SetSockaddrClient(sockaddrClient);
 	new_client->SetSockLenClient(socklenClient);
-	this->map.insert(std::pair<int, Client*>(newConnexion, new_client));
+	if (this->map.insert(std::pair<int, Client*>(newConnexion, new_client)).second == false) {
+		close (newConnexion);
+		delete new_client;
+	}
 	fcntl(newConnexion, F_SETFL, O_NONBLOCK);
 	EV_SET(this->getevent(), newConnexion, EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, 0);
 	if (kevent(this->getEvenementQueue(), this->getevent(), 1, NULL, 0, NULL) == -1)
@@ -54,10 +57,11 @@ void server::WaitForConnection(void) {
 	struct sockaddr 	sockaddrClient;
 	socklen_t 			socklenClient;
 
+	socklenClient = sizeof(sockaddrClient);
 	while (true) { //laisser tourner le serveur tout le temps
 		if ((nbOfEvents = kevent(this->getEvenementQueue(), NULL, 0, this->getTevent(0), SIZE_TEVENT, NULL)) == -1) //si on recoit -1 de kevent alors crash => on stock dans nbOfEvents
 			ft_crash("Triggered event retrieval error", 8);
-		std::cout << nbOfEvents << std::endl;
+		std::cout << "Numbers of Events = [" << nbOfEvents << "]" << std::endl;
 		for (int i = 0; i < nbOfEvents; i++) { //pour nombres d'events triggered
 			if ((serverSocket = this->findServerSocket(this->getTevent(i)->ident)) != -1) { // si event est un serveur socket
 				std::cout << "serverSocket = " << serverSocket << std::endl;
@@ -72,8 +76,8 @@ void server::WaitForConnection(void) {
 				if (!current) //si on a rien on continue
 					continue;
 				if (this->getTevent(i)->filter == EVFILT_READ)
-					current->ReceiveHeader(this->getEvenementQueue());
-				else {
+					current->ReceiveHeader(this->getEvenementQueue(), map);
+				else if (this->getTevent(i)->filter == EVFILT_WRITE) {
 					current->ResponseToClient(map, this->getEvenementQueue(), this->config);
 				}
 			}
@@ -141,7 +145,6 @@ struct kevent* server::getevent(void) {
 int	server::findServerSocket(uintptr_t &ident) {
 	for (size_t i = 0; i < serverConfigCount; i++) {
 		if (static_cast<int>(ident) == ServerSocket[i]) {
-			std::cout << ServerSocket[i];
 			return (ServerSocket[i]);
 		}
 	}
@@ -273,7 +276,7 @@ void server::FindMaxBody(const std::string& buffer, struct config* conf) {
 		std::cout << sizeMax << std::endl;
 		char c = sizeMax[sizeMax.length() - 1];
 		conf->maxBodySize = strtol(sizeMax.c_str(), NULL, 10);
-		int sizeMemory;
+		int sizeMemory = 0;
 		switch (c)
 		{
 		case 'K':
@@ -315,9 +318,9 @@ size_t server::FindMethods(const std::string& buffer, size_t pos, struct Locatio
 	xpos = buffer.find(";", pos);
 	while (pos <= xpos) {
 		ypos = buffer.find(" ", pos);
-		if (ypos > border)
+		if (ypos > border || ypos > xpos)
 			ypos = xpos;
-		if (pos < border|| xpos < border)
+		if (pos < border || xpos < border)
 			conf->methods.push_back(buffer.substr(pos, ypos - pos));
 		pos = ypos + 1;
 	}
