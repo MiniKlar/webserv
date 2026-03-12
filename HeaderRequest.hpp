@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 04:00:02 by lomont            #+#    #+#             */
-/*   Updated: 2026/03/09 23:38:29 by lomont           ###   ########.fr       */
+/*   Updated: 2026/03/12 00:17:47 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -48,6 +48,7 @@ class HeaderRequest
 		Method												method;
 		std::map<std::string, std::string>					headerPair;
 		const char*											body;
+		bool												_delete;
 		Error												error;
 	public:
 		//constructors
@@ -67,12 +68,14 @@ class HeaderRequest
 		void ParseFirstLine(std::string&);
 		void printDebug(void);
 		void CreateImage(std::string&, std::string&);
+		void			CleanHeader(void);
 		std::string FindFileName(void);
 
 		//getters
 		std::map<std::string, std::string>& getPairs(void);
 		Method								GetMethod(void);
 		Error								GetError(void);
+		bool								GetDeleteSocket(void);
 
 		//setters
 		void	SetBody(const std::string);

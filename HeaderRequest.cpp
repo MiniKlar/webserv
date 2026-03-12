@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 04:01:30 by lomont            #+#    #+#             */
-/*   Updated: 2026/03/09 19:37:22 by lomont           ###   ########.fr       */
+/*   Updated: 2026/03/12 01:11:21 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -76,7 +76,12 @@ void HeaderRequest::ParseHeaderRequest(std::string& bufferHeader) {
 		}
 		pair.first = bufferHeader.substr(pos, mid - pos);
 		pair.second = bufferHeader.substr((mid + 1), npos - (mid + 1));
-		std::cout << pair.first << pair.second << std::endl;
+		if (pair.first == "Connection:") {
+			if (pair.second == "keep-alive")
+				this->_delete = false;
+			else
+				this->_delete = true;
+		}
 		this->headerPair.insert(pair);
 		pos = npos + 2;
 	}
@@ -121,6 +126,14 @@ void HeaderRequest::ParseFirstLine(std::string& bufferHeader) {
 	SetMethod(headerPair["Method:"]);
 }
 
+void HeaderRequest::CleanHeader(void) {
+	this->body = NULL;
+	this->error = OK;
+	this->headerPair.clear();
+	this->method = OTHER;
+	this->_delete = false;
+}
+
 //Getters
 
 std::map<std::string, std::string>& HeaderRequest::getPairs(void) {
@@ -133,6 +146,10 @@ Method HeaderRequest::GetMethod(void) {
 
 Error HeaderRequest::GetError(void) {
 	return (this->error);
+}
+
+bool HeaderRequest::GetDeleteSocket(void) {
+	return (this->_delete);
 }
 
 //Setters
