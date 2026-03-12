@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 04:02:28 by lomont            #+#    #+#             */
-/*   Updated: 2026/03/11 02:22:25 by lomont           ###   ########.fr       */
+/*   Updated: 2026/03/12 01:49:52 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,17 +15,23 @@
 
 //Constructors
 
-HeaderResponse::HeaderResponse(HeaderRequest& setRequest, struct config* setConfig) : request(setRequest), config(setConfig), error(false) {
+HeaderResponse::HeaderResponse(HeaderRequest& setRequest, struct config* setConfig) : request(setRequest), config(setConfig), error(false), parsed(false) {
+	FindLocation();
+	CheckMethod();
 	FindPath(); //find path file
 	SetBodySize(); //set size of the file requested
-	CheckMethod();
+	if (!this->error)
+		OpenBodyFile();
 	//if location old page
 	//if autoindex
 	//if cgi pass
-	OpenBodyFile();
-	buffer = code_200() + buffer;
-	//if (!CheckErrors()) // pas bon
-		//pas ok
+	if (!this->error)
+		GetHeaderResponse();
+	if (this->header.empty())
+		this->header = CheckErrors();
+	buffer = header + buffer;
+	std::cout << buffer << std::endl;
+	parsed = true;
 	return ;
 }
 
@@ -60,13 +66,42 @@ HeaderResponse::~HeaderResponse(void) {
 	return;
 }
 
+void HeaderResponse::FindLocation(void) {
+	struct LocationConfig*	ptr;
+	std::string str;
+	size_t		pos;
+
+	pos = 0;
+	str = this->request.getPairs()["Request-Target:"];
+	ptr = this->config->locationConfig;
+	std::cout << "voici str = [" << str << "]" << std::endl;
+	for (size_t i = 0; i < this->config->numbersOfLocation; i++) {
+		std::cout << "location = [" << ptr[i].location << "]" << std::endl;
+		if (str.compare(0, ptr[i].location.size(), ptr[i].location) == 0) {
+			if (ptr[i].location.size() > pos) {
+				pos = ptr[i].location.size();
+				indexLocationConfig = i;
+			}
+		}
+	}
+}
+
+void HeaderResponse::GetHeaderResponse(void) {
+	Method method = request.GetMethod();
+	if (method == GET)
+		this->header = code_200();
+	else if (method == POST)
+		this->header = code_201();
+	else if (method == DELETE)
+		this->header = code_204();
+	return ;
+}
+
 void HeaderResponse::OpenBodyFile(void) {
 	int		file;
 	int		bread;
 	char 	*buffer;
 
-	if (error)
-		return ;
 	buffer = NULL;
 	file = open(pathfile.c_str(), O_RDONLY);
 	if (file == -1) {
@@ -78,6 +113,7 @@ void HeaderResponse::OpenBodyFile(void) {
 	if (!buffer) {
 		this->request.SetError(INTERNAL);
 		error = true;
+		close(file);
 		return ;
 	}
 	bread = read(file, buffer, bodySize);
@@ -85,6 +121,7 @@ void HeaderResponse::OpenBodyFile(void) {
 		delete[] buffer;
 		this->request.SetError(INTERNAL);
 		error = true;
+		close(file);
 		return ;
 	}
 	buffer[bread] = '\0';
@@ -99,56 +136,62 @@ void HeaderResponse::CheckMethod(void) {
 	std::string				headerMethod;
 	bool					methodAccepted;
 
-	if (error)
-		return ;
 	methodAccepted = false;
-	methods = this->config->locationConfig[indexLocationConfig].methods;
 	headerMethod = this->request.getPairs()["Method:"];
-	std::cout << "ici avant crash" << std::endl;
+	//check si le header fait parti des headers pris en charge par webserv
+	if (headerMethod != "GET" && headerMethod != "POST" && headerMethod != "DELETE") {
+		std::cout << "method not implemented" << std::endl;
+		this->request.SetError(NOT_IMPLEMENTED);
+		error = true;
+		return ;
+	}
+	//check si le header est pris en charge par la location
+	methods = this->config->locationConfig[indexLocationConfig].methods;
 	for (std::vector<std::string>::iterator it = methods.begin(); it != methods.end(); it++) {
 		std::cout << "method = [" << *it << "]" << std::endl;
 		if (*it == headerMethod)
 			methodAccepted = true;
 	}
 	if (methodAccepted == false) {
-		this->request.SetError(NOT_IMPLEMENTED);
+		std::cout << "method not implemented" << std::endl;
+		this->request.SetError(NOT_ALLOWED);
 		error = true;
 	}
 	return;
 }
 
+void HeaderResponse::CleanHeader(void) {
+	this->bodySize = 0;
+	this->bodySizePrint.clear();
+	this->buffer.clear();
+	this->config = NULL;
+	this->error = false;
+	this->header.clear();
+	this->indexLocationConfig = -1;
+	this->parsed = false;
+	this->pathfile.clear();
+}
+
 void HeaderResponse::FindPath(void) {
-	struct LocationConfig*	ptr;
 	std::string str;
 	std::string uri;
 	std::string root;
-	size_t		pos;
 
 	if (error)
 		return ;
-	pos = 0;
 	str = this->request.getPairs()["Request-Target:"];
-	ptr = this->config->locationConfig;
-	std::cout << "voici str = [" << str << "]" << std::endl;
-	for (size_t i = 0; i < this->config->numbersOfLocation; i++) {
-		std::cout << "location = [" << ptr[i].location << "]" << std::endl;
-		if (str.compare(0, ptr[i].location.size(), ptr[i].location) == 0) {
-			if (ptr[i].location.size() > pos) {
-				pos = ptr[i].location.size();
-				uri = ptr[i].location;
-				indexLocationConfig = i;
-			}
-		}
-	}
+	uri = this->config->locationConfig[indexLocationConfig].location;
 	std::cout << "uri = [" << uri << "]" << std::endl;
-	root = ptr[indexLocationConfig].root;
+	root = this->config->locationConfig[indexLocationConfig].root;
 	std::cout << "root = [" << root << "]" << std::endl;
 	this->pathfile = root + str;
-	std::cout << "pathile = [" << pathfile << "]" << std::endl;
+	std::cout << "pathfile = [" << pathfile << "]" << std::endl;
 	return ;
 }
 
 std::string HeaderResponse::CheckErrors(void) {
+	if (!this->header.empty())
+		return (header);
 	switch (this->request.GetError())
 	{
 		case OK:
@@ -205,6 +248,13 @@ void HeaderResponse::SetBodySize(void) {
 			error = true;
 		}
 	}
+	if (s.st_mode & S_IFDIR) {
+		if (stat(DEFAULT_ERROR_PAGE, &s) == -1)
+			return; //peut etre hard code une réponse d'erreur?
+		this->request.SetError(NOT_FOUND);
+		pathfile = DEFAULT_ERROR_PAGE;
+		error = true;
+	}
 	bodySize = s.st_size;
 	oss << s.st_size;
 	bodySizePrint = oss.str();
@@ -224,6 +274,10 @@ void HeaderResponse::SetBodySize(void) {
 // 	return ;
 // }
 
+bool HeaderResponse::IsParsed(void) {
+	return (this->parsed);
+}
+
 std::string HeaderResponse::getConnectionStatut(void) {
 	std::map<std::string, std::string>& map = this->request.getPairs();
 	std::map<std::string, std::string>::iterator it;
@@ -238,9 +292,9 @@ std::string HeaderResponse::GetMethodAllowed(void) {
 	std::vector<std::string>	tmp;
 	std::string					methods;
 
-	tmp = this->config->locationConfig[this->indexLocationConfig].methods;
+	tmp = this->config->locationConfig[indexLocationConfig].methods;
 	for (size_t i = 0; i < tmp.size(); i++) {
-		methods = tmp[i];
+		methods += tmp[i];
 		if (i + 1 < tmp.size())
 			methods += " ";
 	}
@@ -276,7 +330,7 @@ std::string HeaderResponse::code_404(void) {
 }
 
 std::string HeaderResponse::code_405(void) {
-	return ("HTTP/1.1 405 Method Not Allowed\r\nDate: " + this->getCurrentTime() + "\r\nServer:Webserv\r\nAllow: " + GetMethodAllowed() + "\r\n");
+	return ("HTTP/1.1 405 Method Not Allowed\r\nDate: " + this->getCurrentTime() + "\r\nServer: Webserv\r\nContent-Length: 0\r\nAllow: " + GetMethodAllowed() + "\r\n\r\n");
 }
 
 std::string HeaderResponse::code_411(void) {
@@ -309,10 +363,6 @@ std::string HeaderResponse::code_505(void) {
 // 	if (this->empty)
 // 		return (true);
 // 	return (false);
-// }
-
-// bool HeaderResponse::GetDeleteSocket(void) {
-// 	return (this->deleteSocket);
 // }
 
 std::string HeaderResponse::GetBuffer(void) {

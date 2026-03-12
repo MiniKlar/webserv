@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 04:02:32 by lomont            #+#    #+#             */
-/*   Updated: 2026/03/11 02:10:38 by lomont           ###   ########.fr       */
+/*   Updated: 2026/03/12 01:02:54 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -37,12 +37,14 @@ class HeaderResponse
 	private:
 		HeaderRequest	request;
 		struct config	*config;
+		std::string		header;
 		std::string		buffer;
 		std::string		bodySizePrint;
 		off_t			bodySize;
 		std::string		pathfile;
 		size_t			indexLocationConfig;
 		bool			error;
+		bool			parsed;
 		// std::map<std::string, std::string>	Map;
 		// off_t			bufferSize;
 		// std::string		stringFileSize;
@@ -58,14 +60,17 @@ class HeaderResponse
 		//char*		SearchFileRequested(std::string&);
 
 		//void		CheckConnectionStatut(void);
-		std::string		GetResponseHeader(void);
+		void			GetHeaderResponse(void);
 
 		std::string		CheckErrors(void);
 		void			CheckMethod(void);
 		void			OpenBodyFile(void);
 
+		void			CleanHeader(void);
+
 		//bool			IsEmpty(void);
 		void			FindPath(void);
+		void			FindLocation(void);
 
 		//Setters
 		void			SetBodySize(void);
@@ -74,13 +79,13 @@ class HeaderResponse
 		std::string		GetBuffer(void);
 		std::string		GetMethodAllowed(void);
 		std::string		getCurrentTime(void);
+		bool			IsParsed(void);
 
-		std::string 	 getLocation(void);
+		std::string 	getLocation(void);
 		off_t& 			GetFileSize(void);
 		void			getContentLength(std::string&); //setter in reality
 		std::string 	getContent(void);
 		std::string 	getConnectionStatut(void);
-		bool			GetDeleteSocket(void);
 
 		//Response Header
 		std::string 	code_200(void);
