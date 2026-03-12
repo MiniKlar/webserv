@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/03/02 00:26:06 by lomont            #+#    #+#             */
-/*   Updated: 2026/03/11 02:22:39 by lomont           ###   ########.fr       */
+/*   Updated: 2026/03/12 00:37:30 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -28,7 +28,7 @@ Client::~Client(void) {
 	return ;
 }
 
-void Client::ReceiveHeader(int& fdQueue) {
+void Client::ReceiveHeader(int& fdQueue, std::map<int, Client*>& map) {
 	char	buffer[4096];
 	ssize_t	received;
 	int		err;
@@ -48,7 +48,7 @@ void Client::ReceiveHeader(int& fdQueue) {
 			InternalError(fdQueue);
 	}
 	else if (received == 0) {
-		close(fd);
+		CloseConnection(map);
 		return ;
 	}
 	else if (received > 0)
@@ -57,6 +57,7 @@ void Client::ReceiveHeader(int& fdQueue) {
 		this->_request = HeaderRequest(this->headerBuffer);
 	if (ReceiveBody(fdQueue) == 0)
 		ChangeKeventState(fdQueue, true);
+	//std::cout << "header: [" << this->headerBuffer << "]" << std::endl;
 	return ;
 }
 
@@ -98,9 +99,9 @@ void	Client::ResponseToClient(std::map<int, Client*>& map, int& fdQueue, struct 
 	std::string	str;
 	int			err;
 
-	this->_response = HeaderResponse(this->_request, config);
+	if (!this->_response.IsParsed())
+		this->_response = HeaderResponse(this->_request, config);
 	str = _response.GetBuffer();
-	std::cout << "complete buffer = [" << str << "]" <<  std::endl;
 	bytesSent = send(fd, str.c_str(), str.length(), 0);
 	std::cout << bytesSent << std::endl;
 	if (bytesSent == -1) {
@@ -114,10 +115,21 @@ void	Client::ResponseToClient(std::map<int, Client*>& map, int& fdQueue, struct 
 		ResizeBuffer(str);
 		return ;
 	}
-	// else if (_response.GetDeleteSocket())
-	// 	CloseConnection(map);
-	else
+	else if (_request.GetDeleteSocket())
+		CloseConnection(map);
+	else {
 		ChangeKeventState(fdQueue, false);
+		CleanClient();
+	}
+}
+
+void Client::CleanClient(void) {
+	this->_request.CleanHeader();
+	this->_response.CleanHeader();
+	this->bytesSent = 0;
+	this->headerBody.clear();
+	this->headerBuffer.clear();
+	this->headerFound = false;
 }
 
 void Client::ResizeBuffer(std::string& str) {
@@ -127,7 +139,9 @@ void Client::ResizeBuffer(std::string& str) {
 
 void Client::CloseConnection(std::map<int, Client*>& map) {
 	map.erase(fd);
+	std::cout << "deleting connection" << std::endl;
 	delete this;
+	return ;
 }
 
 void Client::ChangeKeventState(int& fdQueue, bool disableRead) {
