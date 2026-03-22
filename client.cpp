@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/03/02 00:26:06 by lomont            #+#    #+#             */
-/*   Updated: 2026/03/12 00:37:30 by lomont           ###   ########.fr       */
+/*   Updated: 2026/03/22 12:20:59 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -28,16 +28,14 @@ Client::~Client(void) {
 	return ;
 }
 
-void Client::ReceiveHeader(int& fdQueue, std::map<int, Client*>& map) {
+void Client::ReceiveHeader(int& fdQueue, std::map<int, Client*> map) {
 	char	buffer[4096];
 	ssize_t	received;
+	size_t	index;
+	long	contentSize;
 	int		err;
 
-	while (!headerFound && ((received = recv(this->fd, buffer, sizeof(buffer) - 1, 0)) > 0)) {
-		this->headerBuffer.append(buffer, received);
-		if (this->headerBuffer.find("\r\n\r\n") != std::string::npos)
-			headerFound = true;
-	}
+	received = recv(this->fd, buffer, sizeof(buffer) - 1, 0);
 	if (received == -1) {
 		err = errno;
 		if (err == EAGAIN || err == EWOULDBLOCK) {
@@ -46,64 +44,59 @@ void Client::ReceiveHeader(int& fdQueue, std::map<int, Client*>& map) {
 		}
 		else
 			InternalError(fdQueue);
-	}
+		}
 	else if (received == 0) {
 		CloseConnection(map);
 		return ;
 	}
-	else if (received > 0)
-		this->headerBody.append(buffer, received);
-	if (headerFound)
-		this->_request = HeaderRequest(this->headerBuffer);
-	if (ReceiveBody(fdQueue) == 0)
-		ChangeKeventState(fdQueue, true);
-	//std::cout << "header: [" << this->headerBuffer << "]" << std::endl;
+	else if (received > 0) {
+		if (!headerFound) {
+			this->headerBuffer.append(buffer, received);
+			if (this->headerBuffer.find("\r\n\r\n") != std::string::npos) {
+				headerFound = true;
+				this->_request = HeaderRequest(this->headerBuffer);
+			}
+			if (received == static_cast<ssize_t>(this->headerBuffer.find("\r\n\r\n")) + 4)
+				ChangeKeventState(fdQueue, true);
+		}
+		else {
+			std::map<std::string, std::string>& map = this->_request.getPairs();
+			if (this->headerBody.empty()) {
+				index = this->headerBuffer.find("\r\n\r\n");
+				this->headerBody = this->headerBuffer.substr(index + 4, headerBuffer.length() - (index + 4));
+				pos += headerBody.size();
+				// std::cout << "pos = " << pos << std::endl;
+				this->headerBuffer.erase(index + 4, headerBuffer.length() - (index + 4));
+			}
+			if (map.find("Content-Length:") != map.end()) {
+				contentSize = strtol(map.find("Content-Length:")->second.c_str(), NULL, 10);
+				// std::cout << "contentSize = " << contentSize << std::endl;
+				// std::cout << "pos = " << pos << std::endl;
+				pos += received;
+				this->headerBody.append(buffer, received);
+				if (this->pos == contentSize) {
+					this->_request.SetBody(this->headerBody);
+					ChangeKeventState(fdQueue, true);
+				}
+			}
+			else if (this->_request.GetMethod() == POST)
+				this->_request.SetError(LENGTH);	//renvoyer un code d'erreur indiquant qu'il manque un length.
+		}
+	}
 	return ;
-}
-
-int	Client::ReceiveBody(int& fdQueue) {
-	char	buffer[4096];
-	ssize_t	received;
-	size_t	index;
-	long	contentSize;
-	int		err;
-
-	std::map<std::string, std::string>& map = this->_request.getPairs();
-	if (this->headerBody.empty()) {
-		index = this->headerBuffer.find("\r\n\r\n");
-		this->headerBody = this->headerBuffer.substr(index + 4, headerBuffer.length() - (index + 4));
-		this->headerBuffer.erase(index + 4, headerBuffer.length() - (index + 4));
-	}
-	if (map.find("Content-Length:") != map.end()) {
-		contentSize = strtol(map.find("Content-Length:")->second.c_str(), NULL, 10);
-		while (this->pos <= contentSize && ((received = recv(fd, buffer, sizeof(buffer) - 1, 0)) > 0)) {
-			pos += received;
-			this->headerBody.append(buffer, received);
-		}
-		if (received == -1) {
-			err = errno;
-			if (err == EAGAIN || err == EWOULDBLOCK)
-				return (-1); //on veut que ça retourne dans cette fonction pour tout avoir
-			else
-				InternalError(fdQueue);
-		}
-	}
-	else if (this->_request.GetMethod() == POST)
-		this->_request.SetError(LENGTH);	//renvoyer un code d'erreur indiquant qu'il manque un length.
-	if (this->headerBody.length() > 0)
-		this->_request.SetBody(this->headerBody);
-	return (0);
 }
 
 void	Client::ResponseToClient(std::map<int, Client*>& map, int& fdQueue, struct config* config) {
 	std::string	str;
 	int			err;
 
-	if (!this->_response.IsParsed())
+	std::cout << this->_response.IsParsed() << std::endl;
+	if (this->_response.IsParsed() == false)
 		this->_response = HeaderResponse(this->_request, config);
 	str = _response.GetBuffer();
 	bytesSent = send(fd, str.c_str(), str.length(), 0);
-	std::cout << bytesSent << std::endl;
+	std::cout << "bytesSent= [" << bytesSent << "]" << std::endl;
+	std::cout << "size str = [" << str.size() << "]" << std::endl;
 	if (bytesSent == -1) {
 		err = errno;
 		if (err == EAGAIN || err == EWOULDBLOCK)
@@ -130,10 +123,12 @@ void Client::CleanClient(void) {
 	this->headerBody.clear();
 	this->headerBuffer.clear();
 	this->headerFound = false;
+	this->pos = 0;
 }
 
 void Client::ResizeBuffer(std::string& str) {
 	str.erase(0, this->bytesSent);
+	this->_response.SetBuffer(str);
 	bytesSent = 0;
 }
 

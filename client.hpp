@@ -38,8 +38,7 @@ class Client
 		void					SetSockLenClient(socklen_t);
 
 		//member functions
-		void					ReceiveHeader(int&, std::map<int, Client*>&);
-		int						ReceiveBody(int&);
+		void					ReceiveHeader(int&, std::map<int, Client*> map);
 		void					ResponseToClient(std::map<int, Client*>&, int&, struct config*);
 		void					ChangeKeventState(int&, bool);
 		void					InternalError(int&);
