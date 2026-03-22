@@ -1,170 +1,154 @@
 <!DOCTYPE html>
-<html>
+<html lang="fr">
 <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Upload Image</title>
   <style>
+    :root {
+      --bg-top: #fff7ed;
+      --bg-bottom: #ffedd5;
+      --card: #ffffff;
+      --text: #1c1917;
+      --muted: #57534e;
+      --accent: #ea580c;
+      --accent-strong: #c2410c;
+      --border: #fdba74;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
     body {
-      font-family: Arial, sans-serif;
-      max-width: 1200px;
-      margin: 0 auto;
+      margin: 0;
+      font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+      color: var(--text);
+      background: linear-gradient(180deg, var(--bg-top) 0%, var(--bg-bottom) 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       padding: 20px;
     }
-    .gallery {
+
+    .panel {
+      width: min(680px, 100%);
+      background: var(--card);
+      border: 2px solid var(--border);
+      border-radius: 14px;
+      box-shadow: 0 18px 32px rgba(120, 53, 15, 0.15);
+      padding: 24px;
+    }
+
+    h1 {
+      margin: 0 0 16px;
+      font-size: clamp(1.5rem, 4vw, 2rem);
+    }
+
+    p {
+      margin: 0 0 16px;
+      color: var(--muted);
+    }
+
+    form {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-      gap: 15px;
-      margin-top: 20px;
+      gap: 12px;
+      margin-bottom: 20px;
     }
-    .gallery img {
+
+    label {
+      font-weight: 700;
+    }
+
+    input[type="file"] {
       width: 100%;
-      height: 200px;
-      object-fit: cover;
-      border: 2px solid #ccc;
+      border: 1px solid var(--border);
       border-radius: 8px;
+      padding: 10px;
+      background: #fff;
+    }
+
+    button {
+      width: fit-content;
+      border: 0;
+      border-radius: 8px;
+      padding: 10px 16px;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 700;
       cursor: pointer;
-      transition: transform 0.2s;
     }
-    .gallery img:hover {
-      transform: scale(1.05);
-      border-color: #666;
+
+    button:hover {
+      background: var(--accent-strong);
     }
+
+    .links {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      gap: 10px;
+    }
+
+    .links a {
+      display: inline-block;
+      color: var(--accent-strong);
+      text-decoration-thickness: 2px;
+      text-underline-offset: 3px;
+      font-weight: 700;
+    }
+
+    .links a:hover {
+      color: #9a3412;
+    }
+
     #preview {
-      max-width: 400px;
-      border: 2px solid #4CAF50;
-      border-radius: 8px;
-      margin-top: 10px;
-    }
-    .modal {
       display: none;
-      position: fixed;
-      z-index: 1000;
-      left: 0;
-      top: 0;
-      width: 100%;
-      height: 100%;
-      background-color: rgba(0,0,0,0.9);
-    }
-    .modal-content {
-      margin: auto;
-      display: block;
-      max-width: 90%;
-      max-height: 90%;
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-    }
-    .close {
-      position: absolute;
-      top: 15px;
-      right: 35px;
-      color: #f1f1f1;
-      font-size: 40px;
-      font-weight: bold;
-      cursor: pointer;
+      width: min(100%, 280px);
+      margin-top: 8px;
+      border-radius: 10px;
+      border: 2px solid var(--border);
+      object-fit: cover;
     }
   </style>
 </head>
 <body>
+  <main class="panel">
+    <h1>Uploader une image</h1>
+    <p>Selectionne une image puis clique sur envoyer.</p>
 
-<h1>Envoyer une image</h1>
-<p><a href="index.html">Retour à l'accueil</a></p>
+    <form action="/default_upload" method="post" enctype="multipart/form-data">
+      <label for="imageInput">Image</label>
+      <input id="imageInput" type="file" name="image" accept="image/*" required>
+      <button type="submit">Envoyer</button>
+      <img id="preview" alt="Apercu de l'image">
+    </form>
 
-<form action="/upload" method="post" enctype="multipart/form-data">
-  <label for="imageInput">Choisir une image :</label>
-  <input id="imageInput" type="file" name="image" accept="image/*" required>
-  <button type="submit">Envoyer au serveur</button>
-</form>
+    <h2>Liens rapides</h2>
+    <ul class="links">
+      <li><a href="/uploads/image0.png">image0</a></li>
+      <li><a href="/uploads/image1.png">image1</a></li>
+      <li><a href="/uploads/image2.png">image2</a></li>
+    </ul>
+  </main>
 
-<h2>Aperçu du fichier sélectionné</h2>
-<img id="preview" alt="Aperçu de l'image" style="display: none;">
+  <script>
+    const input = document.getElementById('imageInput');
+    const preview = document.getElementById('preview');
 
-<h2>Images disponibles dans le dossier drive</h2>
-<div id="gallery" class="gallery"></div>
-<p id="galleryStatus" style="color: #666;"></p>
-
-<div id="imageModal" class="modal">
-  <span class="close">&times;</span>
-  <img class="modal-content" id="modalImage">
-</div>
-
-<script>
-  const imageInput = document.getElementById('imageInput');
-  const preview = document.getElementById('preview');
-  const gallery = document.getElementById('gallery');
-  const galleryStatus = document.getElementById('galleryStatus');
-  const modal = document.getElementById('imageModal');
-  const modalImage = document.getElementById('modalImage');
-  const closeModal = document.querySelector('.close');
-
-  // Aperçu du fichier à uploader
-  imageInput.addEventListener('change', function () {
-    const file = this.files && this.files[0];
-    if (!file) {
-      preview.style.display = 'none';
-      preview.removeAttribute('src');
-      return;
-    }
-    preview.src = URL.createObjectURL(file);
-    preview.style.display = 'block';
-  });
-
-  // Charger les 3 images PNG du dossier drive
-  async function loadGallery() {
-    galleryStatus.textContent = 'Chargement des images...';
-
-    const images = [];
-    const expectedNames = ['image1.png', 'image2.png', 'image3.png'];
-
-    // Chercher uniquement les 3 images spécifiques
-    for (const name of expectedNames) {
-      const path = `/uploads/${name}`;
-      try {
-        const response = await fetch(path, { method: 'HEAD' });
-        if (response.ok) {
-          images.push(path);
-        }
-      } catch (e) {
-        // Fichier n'existe pas
+    input.addEventListener('change', () => {
+      const file = input.files && input.files[0];
+      if (!file) {
+        preview.style.display = 'none';
+        preview.removeAttribute('src');
+        return;
       }
-    }
 
-    if (images.length === 0) {
-      galleryStatus.innerHTML = `Aucune image trouvée.<br/>
-        <strong>Noms attendus :</strong> image1.png, image2.png, image3.png<br/>
-        <strong>Dossier :</strong> /uploads/`;
-      return;
-    }
-
-    galleryStatus.textContent = `${images.length}/3 image(s) trouvée(s)`;
-
-    images.forEach(path => {
-      const img = document.createElement('img');
-      img.src = path;
-      img.alt = path.split('/').pop();
-      img.title = 'Cliquer pour agrandir';
-      img.onclick = () => openModal(path);
-      gallery.appendChild(img);
+      preview.src = URL.createObjectURL(file);
+      preview.style.display = 'block';
     });
-  }
-
-  function openModal(imagePath) {
-    modal.style.display = 'block';
-    modalImage.src = imagePath;
-  }
-
-  closeModal.onclick = () => {
-    modal.style.display = 'none';
-  };
-
-  modal.onclick = (e) => {
-    if (e.target === modal) {
-      modal.style.display = 'none';
-    }
-  };
-
-  // Charger la galerie au démarrage
-  loadGallery();
-</script>
-
+  </script>
 </body>
 </html>
