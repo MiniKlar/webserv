@@ -6,14 +6,14 @@
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 04:00:02 by lomont            #+#    #+#             */
-/*   Updated: 2026/03/12 00:17:47 by lomont           ###   ########.fr       */
+/*   Updated: 2026/03/21 13:58:56 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #ifndef HEADERREQUEST_HPP
 #define HEADERREQUEST_HPP
 
-#define UPLOAD_FOLDER "./www/uploads/"
+#define UPLOAD_FOLDER "/www/uploads/"
 
 #include <iostream>
 #include <sstream>
@@ -47,6 +47,7 @@ class HeaderRequest
 	private:
 		Method												method;
 		std::map<std::string, std::string>					headerPair;
+		std::string											pathImageCreated;
 		const char*											body;
 		bool												_delete;
 		Error												error;
@@ -67,7 +68,7 @@ class HeaderRequest
 		void ParseHeaderRequest(std::string&);
 		void ParseFirstLine(std::string&);
 		void printDebug(void);
-		void CreateImage(std::string&, std::string&);
+		void CreateImage(const std::string&, std::string&);
 		void			CleanHeader(void);
 		std::string FindFileName(void);
 
@@ -76,6 +77,7 @@ class HeaderRequest
 		Method								GetMethod(void);
 		Error								GetError(void);
 		bool								GetDeleteSocket(void);
+		std::string&						GetImagePath(void);
 
 		//setters
 		void	SetBody(const std::string);

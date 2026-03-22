@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 04:01:30 by lomont            #+#    #+#             */
-/*   Updated: 2026/03/12 01:11:21 by lomont           ###   ########.fr       */
+/*   Updated: 2026/03/22 09:52:05 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -152,10 +152,19 @@ bool HeaderRequest::GetDeleteSocket(void) {
 	return (this->_delete);
 }
 
+std::string& HeaderRequest::GetImagePath(void) {
+	return (this->pathImageCreated);
+}
+
 //Setters
 
 void HeaderRequest::SetBody(const std::string body) {
 	this->body = body.c_str();
+	//extraire boundary depuis Content-type
+	std::string contentType = this->headerPair["Content-Type:"];
+	std::string	boundary = contentType.substr(contentType.find("boundary=") + 10, contentType.find("\r\n") - contentType.find("boundary=") + 10);
+	logs(boundary);
+	CreateImage(body, boundary);
 }
 
 void HeaderRequest::SetMethod(std::string& method) {
@@ -173,53 +182,59 @@ void HeaderRequest::SetError(Error err) {
 	this->error = err;
 }
 
-// std::string HeaderRequest::FindFileName(void) {
-// 	std::string filename;
-// 	std::ostringstream oss;
-// 	for (int i = 1; i < 4; i++) {
-// 		oss << "image" << i << ".png";
-// 		filename = oss.str();
-// 		if (access(filename.c_str(), F_OK) != 0)
-// 			return (filename);
-// 	}
-// 	return ("image0.png");
-// 	//système selon date d'ancienneté pour savoir qui remplacer?
-// }
+std::string HeaderRequest::FindFileName(void) {
+	std::string filename = ".";
+	std::ostringstream oss;
+	for (int i = 0; i < 4; i++) {
+		oss << "image" << i << ".png";
+		filename += UPLOAD_FOLDER + oss.str();
+		if (access(filename.c_str(), F_OK) != 0)
+			return (oss.str());
+		oss.str("");
+		filename = ".";
+	}
+	return ("image0.png");
+	//système selon date d'ancienneté pour savoir qui remplacer?
+}
 
-// void HeaderRequest::CreateImage(std::string& bufferBody, std::string& boundary) {
-// 	if (bufferBody.length() > 4) {
-// 		//extraire boundary depuis Content-type
+void HeaderRequest::CreateImage(const std::string& bufferBody, std::string& boundary) {
+	if (boundary.length() == 0)
+		return ; //bool pour error?
+	if (bufferBody.length() > 4) {
+		std::string name;
+		std::string filename;
+		std::string image_png;
+		size_t startpos;
+		size_t endpos;
 
-// 		//retirer header;
-// 		std::string name;
-// 		std::string filename;
-// 		std::string image_png;
-// 		size_t startpos;
-// 		size_t endpos;
-// 		startpos = bufferBody.find("name=") + 6;
-// 		endpos = bufferBody.find(";", startpos);
-// 		name = bufferBody.substr(startpos, endpos - startpos - 1);
-// 		//std::cout << name << std::endl;
-// 		startpos = bufferBody.find("filename=") + 10;
-// 		endpos = bufferBody.find("\r\n", startpos);
-// 		filename = bufferBody.substr(startpos, endpos - startpos - 1);
-// 		//std::cout << filename << std::endl;
-// 		startpos = bufferBody.find("Content-Type:") + 14;
-// 		endpos = bufferBody.find("\r\n", startpos);
-// 		image_png = bufferBody.substr(startpos, endpos - startpos);
-// 		//std::cout << image_png << std::endl;
-// 		//récupérer index dernier \r\n + 4 (pour arriver apres fin de ligne) jusqu'à boundary end
-// 		startpos = endpos + 4;
-// 		std::string delimiter = "\r\n" + boundary + "--";
-// 		endpos = bufferBody.find(delimiter, startpos);
-// 		std::string image = bufferBody.substr(startpos, endpos - startpos);
-// 		pathFileCreated = filename;
-// 		//securiser filename
-// 		std::string img_filename = UPLOAD_FOLDER + FindFileName();
-// 		int image_fd = open(img_filename.c_str(), O_CREAT | O_TRUNC | O_WRONLY);
-// 		if (image_fd == -1)
-// 			ft_crash("creating image failed", 31);
-// 		write(image_fd, image.data(), image.size());
-// 		close(image_fd);
-// 	};
-// }
+		startpos = bufferBody.find("name=") + 6;
+		endpos = bufferBody.find(";", startpos);
+		name = bufferBody.substr(startpos, endpos - startpos - 1);
+		logs(name);
+		startpos = bufferBody.find("filename=") + 10;
+		endpos = bufferBody.find("\r\n", startpos);
+		filename = bufferBody.substr(startpos, endpos - startpos - 1);
+		logs(filename);
+		startpos = bufferBody.find("Content-Type:") + 14;
+		endpos = bufferBody.find("\r\n", startpos);
+		image_png = bufferBody.substr(startpos, endpos - startpos);
+		logs(image_png);
+
+		//récupérer index dernier \r\n + 4 (pour arriver apres fin de ligne) jusqu'à boundary end
+		startpos = endpos + 4;
+		std::string delimiter = "\r\n" + boundary + "--";
+		logs(delimiter);
+		endpos = bufferBody.find(delimiter, startpos);
+		std::string image = bufferBody.substr(startpos, endpos - startpos);
+
+		//securiser filename
+		std::string img_filename = UPLOAD_FOLDER + FindFileName();
+		pathImageCreated = img_filename;
+		img_filename = "." + img_filename;
+		int image_fd = open(img_filename.c_str(), O_CREAT | O_TRUNC | O_RDWR, S_IWUSR | S_IROTH | S_IRUSR | S_IRGRP);
+		if (image_fd == -1)
+			ft_crash("creating image failed", 31);
+		write(image_fd, image.data(), image.size());
+		close(image_fd);
+	};
+}
