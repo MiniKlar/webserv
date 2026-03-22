@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 04:02:28 by lomont            #+#    #+#             */
-/*   Updated: 2026/03/12 01:49:52 by lomont           ###   ########.fr       */
+/*   Updated: 2026/03/22 13:23:08 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -18,10 +18,15 @@
 HeaderResponse::HeaderResponse(HeaderRequest& setRequest, struct config* setConfig) : request(setRequest), config(setConfig), error(false), parsed(false) {
 	FindLocation();
 	CheckMethod();
-	FindPath(); //find path file
-	SetBodySize(); //set size of the file requested
-	if (!this->error)
-		OpenBodyFile();
+	if (this->request.GetMethod() != POST) {
+		FindPath(); //find path file
+		SetBodySize(); //set size of the file requested
+		if (!this->error)
+			OpenBodyFile();
+	}
+	else {
+		pathfile = this->request.GetImagePath();
+	}
 	//if location old page
 	//if autoindex
 	//if cgi pass
@@ -29,8 +34,9 @@ HeaderResponse::HeaderResponse(HeaderRequest& setRequest, struct config* setConf
 		GetHeaderResponse();
 	if (this->header.empty())
 		this->header = CheckErrors();
+	std::cout << "header = [" << header << "]" << std::endl;
 	buffer = header + buffer;
-	std::cout << buffer << std::endl;
+	std::cout << "buffer après avoir rajouté header = [" << buffer.size() << "]" << std::endl;
 	parsed = true;
 	return ;
 }
@@ -56,6 +62,7 @@ HeaderResponse& HeaderResponse::operator=(const HeaderResponse& other) {
 		this->pathfile = other.pathfile;
 		this->indexLocationConfig = other.indexLocationConfig;
 		this->error = other.error;
+		this->parsed = other.parsed;
 	}
 	return (*this);
 }
@@ -117,6 +124,7 @@ void HeaderResponse::OpenBodyFile(void) {
 		return ;
 	}
 	bread = read(file, buffer, bodySize);
+	std::cout << "bread[" << bread << "]" << std::endl;
 	if (bread <= 0) {
 		delete[] buffer;
 		this->request.SetError(INTERNAL);
@@ -126,8 +134,7 @@ void HeaderResponse::OpenBodyFile(void) {
 	}
 	buffer[bread] = '\0';
 	close(file);
-	std::cout << "buffer = [" << buffer << "]" << std::endl;
-	this->buffer += buffer;
+	this->buffer.append(buffer, bread);
 	return;
 }
 
@@ -214,10 +221,6 @@ std::string HeaderResponse::CheckErrors(void) {
 	return ("");
 }
 
-// std::string HeaderResponse::getContent(void) {
-// 	return (this->content);
-// }
-
 std::string HeaderResponse::getCurrentTime( void ) {
 	time_t currentTime;
 	struct tm* localTime;
@@ -229,6 +232,11 @@ std::string HeaderResponse::getCurrentTime( void ) {
 		exit(15);
 	}
 	return (std::string(ptr));
+}
+
+void HeaderResponse::SetBuffer(std::string str) {
+	this->buffer = str;
+	return ;
 }
 
 void HeaderResponse::SetBodySize(void) {
@@ -263,17 +271,6 @@ void HeaderResponse::SetBodySize(void) {
 	return ;
 }
 
-// void	HeaderResponse::CheckConnectionStatut(void) {
-// 	std::map<std::string, std::string>& map = Map;
-// 	std::map<std::string, std::string>::iterator it;
-// 	it = Map.find("Connection:");
-// 	if (it != map.end()) {
-// 		if (it->second == "keep-alive")
-// 			deleteSocket = false;
-// 	}
-// 	return ;
-// }
-
 bool HeaderResponse::IsParsed(void) {
 	return (this->parsed);
 }
@@ -303,14 +300,13 @@ std::string HeaderResponse::GetMethodAllowed(void) {
 
 std::string HeaderResponse::code_200( void ) {
 	return ("HTTP/1.1 200 OK\r\nDate: "
-	+ this->getCurrentTime() + "\r\nServer: Webserv\r\nContent-Type: text/html; charset=UTF-8\r\nContent-Length: "
-	+ bodySizePrint + "\r\n" + getConnectionStatut() + "\r\n\r\n");
+	+ this->getCurrentTime() + "\r\nServer: Webserv\r\n" + GetContentType() + "\r\nContent-Length: "
+	+ bodySizePrint + "\r\n" + getConnectionStatut() + "\r\n\r\n"); //choisir le type selon ce qu'on envoie => selon s'il y a un body.
 }
 
 std::string HeaderResponse::code_201(void) {
 	return ("HTTP/1.1 201 Created\r\nDate: "
-	+ this->getCurrentTime() + "\r\nServer: Webserv\r\nLocation: " + "hardcode" + "\r\nContent-Type: text/html; charset=UTF-8" + "\r\nContent-Length: "
-	+ bodySizePrint + "\r\n\r\n");
+	+ this->getCurrentTime() + "\r\nServer: Webserv\r\nLocation: " + pathfile + "\r\nContent-Type: " + GetContentType() + "\r\nContent-Length: 0" + "\r\n\r\n");
 }
 
 std::string HeaderResponse::code_204(void) {
@@ -319,13 +315,13 @@ std::string HeaderResponse::code_204(void) {
 
 std::string HeaderResponse::code_400(void) {
 	return ("HTTP/1.1 400 Bad Request\r\nDate: "
-	+ this->getCurrentTime() + "\r\nServer: Webserv\r\nContent-Type: text/html; charset=UTF-8\r\nContent-Length: "
+	+ this->getCurrentTime() + "\r\nServer: Webserv\r\n" + GetContentType() + "\r\nContent-Length: "
 	+ bodySizePrint + "\r\n" + getConnectionStatut() + "\r\n\r\n");
 }
 
 std::string HeaderResponse::code_404(void) {
 	return ("HTTP/1.1 404 Not Found\r\nDate: "
-	+ this->getCurrentTime() + "\r\nServer: Webserv\r\nContent-Type: text/html; charset=UTF-8\r\nContent-Length: "
+	+ this->getCurrentTime() + "\r\nServer: Webserv\r\n"+ GetContentType() +"\r\nContent-Length: "
 	+ bodySizePrint + "\r\n" + getConnectionStatut() + "\r\n\r\n"); //récupérer taille page erreur ?
 }
 
@@ -334,12 +330,12 @@ std::string HeaderResponse::code_405(void) {
 }
 
 std::string HeaderResponse::code_411(void) {
-	return ("HTTP/1.1 411 Length Required\r\nDate: " + this->getCurrentTime() + "\r\nServer: Webserv\r\nContent-Type: text/html; charset=UTF-8\r\nContent-Length: "
+	return ("HTTP/1.1 411 Length Required\r\nDate: " + this->getCurrentTime() + "\r\nServer: Webserv\r\n" + GetContentType() + "\r\nContent-Length: "
 	+ bodySizePrint + "\r\n" + getConnectionStatut() + "\r\n\r\n");
 }
 
 std::string HeaderResponse::code_500(void) {
-	return ("HTTP/1.1 500 Internal Server Error\r\nContent-Type: text/html;\r\nContent-Length: " + bodySizePrint + "\r\n\r\n");
+	return ("HTTP/1.1 500 Internal Server Error\r\n" + GetContentType() + "\r\nContent-Length: " + bodySizePrint + "\r\n\r\n");
 }
 
 std::string HeaderResponse::code_501(void) {
@@ -350,20 +346,14 @@ std::string HeaderResponse::code_505(void) {
 	return ("HTTP/1.1 505 HTTP Version Not Supported\r\nDate: " + this->getCurrentTime() + "\r\nServer: Webserv\r\n\r\n");
 }
 
+//Getters
 
-// off_t& HeaderResponse::GetFileSize(void) {
-// 	return (fileSize);
-// }
-
-// Code HeaderResponse::GetCode(void) {
-// 	return (code);
-// }
-
-// bool HeaderResponse::IsEmpty(void) {
-// 	if (this->empty)
-// 		return (true);
-// 	return (false);
-// }
+std::string HeaderResponse::GetContentType(void) {
+	if (this->request.GetMethod() == POST)
+		return (IMG_TYPE);
+	else
+		return (HTML_TYPE);
+}
 
 std::string HeaderResponse::GetBuffer(void) {
 	return (this->buffer);

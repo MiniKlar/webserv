@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 04:02:32 by lomont            #+#    #+#             */
-/*   Updated: 2026/03/12 01:02:54 by lomont           ###   ########.fr       */
+/*   Updated: 2026/03/22 13:22:53 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,9 +14,10 @@
 #define HEADERRESPONSE_HPP
 
 #define HTML_TYPE "text/html; charset=UTF-8"
-#define DEFAULT_ERROR_PAGE "./www/default_error.html"
-#define DEFAULT_UPLOAD_PATH "./www/uploads/"
-#define	FILE_LOCATION "./www"
+#define IMG_TYPE "multipart/form-data"
+#define DEFAULT_ERROR_PAGE "/www/default_error.html"
+#define DEFAULT_UPLOAD_PATH "/www/uploads/"
+#define	FILE_LOCATION "/www"
 
 #include <ctime>
 #include <cstdlib>
@@ -74,6 +75,7 @@ class HeaderResponse
 
 		//Setters
 		void			SetBodySize(void);
+		void			SetBuffer(std::string);
 
 		//Getters
 		std::string		GetBuffer(void);
@@ -81,10 +83,10 @@ class HeaderResponse
 		std::string		getCurrentTime(void);
 		bool			IsParsed(void);
 
-		std::string 	getLocation(void);
+		std::string 	GetLocation(void);
 		off_t& 			GetFileSize(void);
 		void			getContentLength(std::string&); //setter in reality
-		std::string 	getContent(void);
+		std::string 	GetContentType(void);
 		std::string 	getConnectionStatut(void);
 
 		//Response Header
