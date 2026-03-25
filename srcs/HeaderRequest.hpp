@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 04:00:02 by lomont            #+#    #+#             */
-/*   Updated: 2026/03/25 21:24:27 by lomont           ###   ########.fr       */
+/*   Updated: 2026/03/26 00:04:05 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -55,6 +55,7 @@ class HeaderRequest
 		bool												_delete;
 		Error												error;
 		bool												isCGI;
+		bool												authorized;
 	public:
 		//constructors
 		HeaderRequest();
@@ -80,11 +81,12 @@ class HeaderRequest
 		bool								GetDeleteSocket(void);
 		std::string							GetBody(void);
 		bool								GetIsCGI(void);
+		bool								GetAuthorized(void);
 
 		//setters
-		void	SetMethod(std::string&);
-		void	SetError(Error err);
-		void	SetBody(std::string str);
+		void								SetMethod(std::string&);
+		void								SetError(Error err);
+		void								SetBody(std::string str);
 };
 
 #endif

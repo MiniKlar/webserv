@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 04:02:32 by lomont            #+#    #+#             */
-/*   Updated: 2026/03/25 21:27:21 by lomont           ###   ########.fr       */
+/*   Updated: 2026/03/25 23:55:00 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -46,6 +46,7 @@ class HeaderResponse
 		off_t			bodySize;
 		bool			error;
 		bool			parsed;
+		bool			cookie;
 	public:
 
 		//Canonical form

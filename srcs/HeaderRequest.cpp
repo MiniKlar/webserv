@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 04:01:30 by lomont            #+#    #+#             */
-/*   Updated: 2026/03/25 21:45:49 by lomont           ###   ########.fr       */
+/*   Updated: 2026/03/26 00:04:33 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -19,7 +19,7 @@ HeaderRequest::HeaderRequest(void) : method(OTHER), body(""), error(OK) {
 	return ;
 }
 
-HeaderRequest::HeaderRequest(std::string bufferHeader) : method(OTHER), body(""), error(OK), isCGI(false) {
+HeaderRequest::HeaderRequest(std::string bufferHeader) : method(OTHER), body(""), error(OK), isCGI(false), authorized(false) {
 	ParseHeaderRequest(bufferHeader);
 	return ;
 }
@@ -43,6 +43,7 @@ HeaderRequest& HeaderRequest::operator=(const HeaderRequest& other) {
 		this->_delete = other._delete;
 		this->error = other.error;
 		this->isCGI = other.isCGI;
+		this->authorized = other.authorized;
 	}
 	return (*this);
 }
@@ -85,6 +86,10 @@ void HeaderRequest::ParseHeaderRequest(std::string& bufferHeader) {
 				this->_delete = false;
 			else
 				this->_delete = true;
+		}
+		else if (pair.first == "Cookie:") {
+			if (pair.second == "session_auth=67")
+				this->authorized = true;
 		}
 		this->headerPair.insert(pair);
 		pos = npos + 2;
@@ -166,6 +171,10 @@ bool HeaderRequest::GetDeleteSocket(void) {
 
 bool HeaderRequest::GetIsCGI(void) {
 	return (this->isCGI);
+}
+
+bool HeaderRequest::GetAuthorized(void) {
+	return (this->authorized);
 }
 
 //Setters

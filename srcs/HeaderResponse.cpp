@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 04:02:28 by lomont            #+#    #+#             */
-/*   Updated: 2026/03/25 22:39:52 by lomont           ###   ########.fr       */
+/*   Updated: 2026/03/26 00:13:29 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,7 +15,7 @@
 
 //Constructors
 
-HeaderResponse::HeaderResponse(HeaderRequest& setRequest, struct config* setConfig) : request(setRequest), config(setConfig), header(""), buffer(""), bodySizePrint("0"), pathfile(""), indexLocationConfig(0), bodySize(0), error(false), parsed(false) {
+HeaderResponse::HeaderResponse(HeaderRequest& setRequest, struct config* setConfig) : request(setRequest), config(setConfig), header(""), buffer(""), bodySizePrint("0"), pathfile(""), indexLocationConfig(0), bodySize(0), error(false), parsed(false), cookie(false) {
 	//Create the HeaderResponse depending the method and/or the file is a CGI
 	CreateResponse();
 	return ;
@@ -43,6 +43,7 @@ HeaderResponse& HeaderResponse::operator=(const HeaderResponse& other) {
 		this->bodySize = other.bodySize;
 		this->error = other.error;
 		this->parsed = other.parsed;
+		this->cookie = other.cookie;
 	}
 	return (*this);
 }
@@ -80,6 +81,13 @@ void HeaderResponse::CreateResponse(void) {
 			OpenFile();
 			this->header = CheckErrors();
 		}
+		if (cookie) {
+			size_t pos;
+			pos = header.find("\r\n\r\n");
+			header.erase(pos, 2);
+			header.append("Set-Cookie: session_auth=67; Path=/; Max-Age=3600");
+			header.append("\r\n\r\n");
+		}
 		buffer = header + buffer;
 		parsed = true;
 	}
@@ -101,6 +109,12 @@ void HeaderResponse::HandleCGI() {
 }
 
 void HeaderResponse::HandleGet() {
+	if (this->request.getPairs()["Request-Target:"] == "/get-cookie") {
+		bodySize = 0;
+		bodySizePrint = "0";
+		cookie = true;
+		return ;
+	}
 	FindPathFile(); //trouver le chemin complet du fichier
 	SetFileSize(); //Trouver et set la taille du fichier qu'on va renvoyer
 	if (!this->error) //S'il n'y a pas eu d'erreur, alors on peut essayer d'ouvrir le fichier
@@ -112,7 +126,12 @@ void HeaderResponse::HandleDelete() {
 }
 
 void HeaderResponse::HandlePost() {
-	if (this->request.GetError() != OK) {
+	if (this->request.GetAuthorized() == false) {
+		this->error = true;
+		this->request.SetError(FORBIDDEN);
+		return ;
+	}
+	else if (this->request.GetError() != OK) {
 		this->error = true;
 		return ;
 	}
