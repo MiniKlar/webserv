@@ -104,6 +104,22 @@
       color: #9a3412;
     }
 
+    .links li {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .delete-btn {
+      padding: 6px 10px;
+      background: #ef4444;
+      font-size: 0.8rem;
+    }
+
+    .delete-btn:hover {
+      background: #b91c1c;
+    }
+
     #preview {
       display: none;
       width: min(100%, 280px);
@@ -119,7 +135,7 @@
     <h1>Uploader une image</h1>
     <p>Selectionne une image puis clique sur envoyer.</p>
 
-    <form action="/default_upload" method="post" enctype="multipart/form-data">
+    <form action="/uploads/" method="post" enctype="multipart/form-data">
       <label for="imageInput">Image</label>
       <input id="imageInput" type="file" name="image" accept="image/*" required>
       <button type="submit">Envoyer</button>
@@ -128,9 +144,18 @@
 
     <h2>Liens rapides</h2>
     <ul class="links">
-      <li><a href="/uploads/image0.png">image0</a></li>
-      <li><a href="/uploads/image1.png">image1</a></li>
-      <li><a href="/uploads/image2.png">image2</a></li>
+      <li>
+        <a href="/uploads/image0.png">image0</a>
+        <button type="button" class="delete-btn" data-url="/uploads/image0.png">Supprimer</button>
+      </li>
+      <li>
+        <a href="/uploads/image1.png">image1</a>
+        <button type="button" class="delete-btn" data-url="/uploads/image1.png">Supprimer</button>
+      </li>
+      <li>
+        <a href="/uploads/image2.png">image2</a>
+        <button type="button" class="delete-btn" data-url="/uploads/image2.png">Supprimer</button>
+      </li>
     </ul>
   </main>
 
@@ -148,6 +173,28 @@
 
       preview.src = URL.createObjectURL(file);
       preview.style.display = 'block';
+    });
+
+    document.querySelectorAll('.delete-btn').forEach(button => {
+      button.addEventListener('click', async (e) => {
+        const url = e.target.getAttribute('data-url');
+        if (confirm(`Voulez-vous vraiment supprimer ${url} ?`)) {
+          try {
+            const response = await fetch(url, { method: 'DELETE' });
+            if (response.ok || response.status === 204) {
+              console.log('Suppression réussie pour', url);
+            } else {
+              const errorHtml = await response.text();
+              document.open();
+              document.write(errorHtml);
+              document.close();
+            }
+          } catch (error) {
+            console.error('Erreur:', error);
+            alert('Une erreur s\'est produite lors de la requête DELETE.');
+          }
+        }
+      });
     });
   </script>
 </body>
