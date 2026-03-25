@@ -6,7 +6,7 @@
 #    By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2026/02/15 23:56:24 by lomont            #+#    #+#              #
-#    Updated: 2026/03/25 22:43:28 by lomont           ###   ########.fr        #
+#    Updated: 2026/03/26 00:10:03 by lomont           ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -32,21 +32,18 @@ SRC = ./srcs/main.cpp \
 	./srcs/HeaderResponse.cpp \
 	./srcs/utils.cpp \
 
-OBJ = $(SRC:./%.cpp=$(OBJ_DIR)/%.o)
+OBJ = $(SRC:./srcs/%.cpp=$(OBJ_DIR)/%.o)
 
 all: $(NAME)
 
 $(NAME): $(OBJ)
 	$(CXX) $(CFLAGS) $(OBJ) -o $(NAME)
 
-$(OBJ_DIR)/%.o: ./%.cpp
+$(OBJ_DIR)/%.o: ./srcs/%.cpp
 	@mkdir -p $(OBJ_DIR)
 	$(CXX) $(CFLAGS) -c $< -o $@
 
-make: make all
-
-clean: $(OBJ_DIR)
-	$(RM) $(OBJ)
+clean:
 
 fclean: clean
 	$(RM) $(NAME)
