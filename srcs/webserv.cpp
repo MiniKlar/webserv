@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/18 23:17:19 by lomont            #+#    #+#             */
-/*   Updated: 2026/03/25 22:04:21 by lomont           ###   ########.fr       */
+/*   Updated: 2026/03/29 19:44:27 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -424,14 +424,14 @@ size_t server::FindIndex(const std::string &buffer, size_t pos, struct LocationC
 	size_t xpos;
 	size_t ypos;
 
-	if ((pos = buffer.find(" index", pos)) > border)
+	if ((pos = buffer.find("index ", pos)) > border)
 		return tmp;
 	pos += 6;
 	xpos = buffer.find(";", pos);
 	while (pos <= xpos)
 	{
 		ypos = buffer.find(" ", pos);
-		if (ypos > border)
+		if (ypos > xpos)
 			ypos = xpos;
 		if (pos < border || xpos < border)
 			conf->index.push_back(buffer.substr(pos, ypos - pos));
@@ -443,13 +443,13 @@ size_t server::FindIndex(const std::string &buffer, size_t pos, struct LocationC
 size_t server::FindAutoIndex(const std::string &buffer, size_t pos, struct LocationConfig *conf, size_t &border)
 {
 	size_t tmp = pos;
-	size_t xpos;
+	size_t found;
 
 	if ((pos = buffer.find("autoindex", pos)) > border)
 		return tmp;
-	pos = pos + 9;
-	xpos = buffer.find(";", pos);
-	if (buffer.find("on", xpos - pos) < border)
+	pos = pos + 10;
+	found = buffer.find("on", pos);
+	if (found < border && found != std::string::npos)
 		conf->autoindex = true;
 	else
 		conf->autoindex = false;
