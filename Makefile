@@ -6,14 +6,14 @@
 #    By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2026/02/15 23:56:24 by lomont            #+#    #+#              #
-#    Updated: 2026/03/26 00:10:03 by lomont           ###   ########.fr        #
+#    Updated: 2026/03/29 12:20:56 by lomont           ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
 NAME = webserv
 
 CXX ?= g++-15
-BASE_CFLAGS = -Wall -Wextra -Werror -g -std=c++98 -pedantic -fsanitize=address
+BASE_CFLAGS = -Wall -Wextra -Werror -g -std=c++98 -pedantic
 SANITIZE ?= 0
 
 ifeq ($(SANITIZE),1)
