@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 04:02:32 by lomont            #+#    #+#             */
-/*   Updated: 2026/03/25 23:55:00 by lomont           ###   ########.fr       */
+/*   Updated: 2026/03/29 22:36:27 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -28,6 +28,7 @@
 #include <string>
 #include <unistd.h>
 #include <fcntl.h>
+#include <dirent.h>
 #include "HeaderRequest.hpp"
 #include "utils.hpp"
 
@@ -59,6 +60,7 @@ class HeaderResponse
 		//Member functions
 		void			HandleCGI(void);
 		void			HandleGet(void);
+		void			HandleAutoIndex(void);
 		void			HandlePost(void);
 		void			HandleDelete(void);
 		void			CreateResponse(void);
@@ -72,7 +74,8 @@ class HeaderResponse
 		void			ParseBody(void);
 		void 			CreateImage(const std::string&, std::string&, std::string&);
 		std::string		FindFileName(void);
-		std::string		PerformCGI(void);
+		std::string		PerformCGI(std::string);
+		std::string		PerformListing(std::string&);
 		std::string		CheckErrors(void);
 
 		//Setters
@@ -88,12 +91,13 @@ class HeaderResponse
 		std::string 	GetConnectionStatut(void);
 		std::string		GetCurrentTime(void);
 		std::string		GetMaxBodySize(void);
+		std::string		GetNewLocation(void);
 
 		//Response Header
 		std::string 	code_200(void);
 		std::string 	code_201(void);
 		std::string 	code_204(void);
-		std::string 	code_303(void);
+		std::string 	code_301(void);
 		std::string 	code_400(void);
 		std::string 	code_403(void);
 		std::string 	code_404(void);

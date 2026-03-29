@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 04:02:28 by lomont            #+#    #+#             */
-/*   Updated: 2026/03/26 00:13:29 by lomont           ###   ########.fr       */
+/*   Updated: 2026/03/29 23:41:10 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -66,49 +66,55 @@ void HeaderResponse::CreateResponse(void) {
 		//TODO si erreur dans le script alors que faire?
 		//TODO revoir comment fonctionne un cgi
 		HandleCGI();
-	else {
-		if (this->request.GetMethod() == GET)
-			HandleGet();
-		else if (this->request.GetMethod() == DELETE)
-			HandleDelete();
-		else if (this->request.GetMethod() == POST)
-			HandlePost();
-		if (!this->error)
-			GetHeaderResponse();
-		if (this->header.empty()) {
-			SearchErrorPage();
+	else if (this->request.GetMethod() == GET)
+		HandleGet();
+	else if (this->request.GetMethod() == DELETE)
+		HandleDelete();
+	else if (this->request.GetMethod() == POST)
+		HandlePost();
+	if (!this->error)
+		GetHeaderResponse();
+	if (this->header.empty()) {
+		SearchErrorPage();
+		if (!pathfile.empty()) {
 			SetFileSize();
 			OpenFile();
-			this->header = CheckErrors();
 		}
-		if (cookie) {
-			size_t pos;
-			pos = header.find("\r\n\r\n");
-			header.erase(pos, 2);
-			header.append("Set-Cookie: session_auth=67; Path=/; Max-Age=3600");
-			header.append("\r\n\r\n");
-		}
-		buffer = header + buffer;
-		parsed = true;
+		this->header = CheckErrors();
+		logs(header);
 	}
-	//if location old page
-	//if autoindex
+	if (cookie) {
+		size_t pos;
+		pos = header.find("\r\n\r\n");
+		header.erase(pos, 2);
+		header.append("Set-Cookie: session_auth=67; Path=/; Max-Age=3600");
+		header.append("\r\n\r\n");
+	}
+	buffer = header + buffer;
+	parsed = true;
 }
 
-void HeaderResponse::HandleCGI() {
+void HeaderResponse::HandleCGI(void) {
 	std::ostringstream	oss;
 	std::string			buffer;
 
-	buffer = PerformCGI();
-	size_t pos = buffer.find("\r\n") + 3;
-	this->bodySize = pos - buffer.size();
+	//TODO gérer les headers dynamiques
+	buffer = PerformCGI(this->config->locationConfig[indexLocationConfig].root);
+	size_t pos = buffer.find("\r\n\r\n") + 4;
+	this->buffer = buffer.substr(pos, buffer.size() - pos);
+	this->bodySize = this->buffer.size();
 	oss << bodySize;
 	this->bodySizePrint = oss.str();
 	parsed = true;
 	return ;
 }
 
-void HeaderResponse::HandleGet() {
+void HeaderResponse::HandleGet(void) {
+	std::stringstream ss;
+	std::vector<std::string>			index;
+	std::string	path;
+	bool found = false;
+
 	if (this->request.getPairs()["Request-Target:"] == "/get-cookie") {
 		bodySize = 0;
 		bodySizePrint = "0";
@@ -116,16 +122,58 @@ void HeaderResponse::HandleGet() {
 		return ;
 	}
 	FindPathFile(); //trouver le chemin complet du fichier
+	index = this->config->locationConfig[indexLocationConfig].index;
+	if (this->pathfile.back() == '/') {
+		if (!index.empty()) {
+			for (std::vector<std::string>::iterator it = index.begin(); it != index.end(); it++) {
+				path = std::string(".") + this->pathfile + *it;
+				if (access(path.c_str(), F_OK) == 0) {
+					pathfile = path;
+					found = true;
+					break;
+				}
+			}
+		}
+		if (!found) {
+			if (this->config->locationConfig[indexLocationConfig].autoindex == true) {
+				logs("tu es sur une route '/' avec autoindex on");
+				HandleAutoIndex();
+				this->bodySize = buffer.size();
+				ss << bodySize;
+				this->bodySizePrint = ss.str();
+				logs(this->bodySizePrint);
+				return ;
+			}
+		}
+	}
 	SetFileSize(); //Trouver et set la taille du fichier qu'on va renvoyer
 	if (!this->error) //S'il n'y a pas eu d'erreur, alors on peut essayer d'ouvrir le fichier
 		OpenFile();
-}
-void HeaderResponse::HandleDelete() {
-	FindPathFile();
-	DeleteFile();
+	return ;
 }
 
-void HeaderResponse::HandlePost() {
+void HeaderResponse::HandleAutoIndex(void) {
+	std::string	header;
+	std::string	pathfile;
+	std::string buffer;
+
+	pathfile = this->pathfile;
+	logs("pathfile for autoindex = " + pathfile);
+	header = "<html>\n<head><title>Index of " + pathfile + "</title></head>\n<body>\n<h1>Index of " + pathfile + "</h1><hr>\n<table width=\"100%\">\n<tr style=\"text-align: left;\"><th>Name</th><th>Last Modified</th><th>Size</th></tr>\n";
+	buffer = PerformListing(pathfile);
+	if (buffer.empty())
+		ft_crash("error autoindex", 100);
+	this->buffer = header + buffer + "</table>\n<hr>\n</body>\n</html>";
+	logs("buffer = [" + this->buffer + "]");
+}
+
+void HeaderResponse::HandleDelete(void) {
+	FindPathFile();
+	DeleteFile();
+	return ;
+}
+
+void HeaderResponse::HandlePost(void) {
 	if (this->request.GetAuthorized() == false) {
 		this->error = true;
 		this->request.SetError(FORBIDDEN);
@@ -136,6 +184,7 @@ void HeaderResponse::HandlePost() {
 		return ;
 	}
 	ParseBody();
+	return ;
 }
 
 void HeaderResponse::DeleteFile(void) {
@@ -162,6 +211,7 @@ void HeaderResponse::SearchErrorPage(void) {
 			return ;
 		}
 	}
+	pathfile.clear();
 }
 
 void HeaderResponse::FindFileLocation(void) {
@@ -172,9 +222,7 @@ void HeaderResponse::FindFileLocation(void) {
 	pos = 0;
 	str = this->request.getPairs()["Request-Target:"];
 	ptr = this->config->locationConfig;
-	logs(str);
 	for (size_t i = 0; i < this->config->numbersOfLocation; i++) {
-		logs(ptr[i].location);
 		if (str.compare(0, ptr[i].location.size(), ptr[i].location) == 0) {
 			if (ptr[i].location.size() > pos) {
 				pos = ptr[i].location.size();
@@ -340,8 +388,14 @@ void HeaderResponse::CheckMethod(void) {
 			methodAccepted = true;
 	}
 	if (!methodAccepted) {
-		logs("Method not allowed by the route");
-		this->request.SetError(NOT_ALLOWED);
+		if (!this->config->locationConfig[indexLocationConfig].location.empty()) {
+			logs("Location moved permanently");
+			this->request.SetError(MOVED_PERMANENTLY);
+		}
+		else {
+			logs("Method not allowed by the route");
+			this->request.SetError(NOT_ALLOWED);
+		}
 		error = true;
 	}
 	return;
@@ -379,6 +433,8 @@ std::string HeaderResponse::CheckErrors(void) {
 	{
 		case OK:
 			return ("");
+		case MOVED_PERMANENTLY :
+			return (code_301());
 		case BAD_REQUEST :
 			return (code_400());
 		case FORBIDDEN :
@@ -416,6 +472,10 @@ std::string HeaderResponse::code_201(void) {
 
 std::string HeaderResponse::code_204(void) {
 	return ("HTTP/1.1 204 No Content\r\nDate: " + this->GetCurrentTime() + "\r\nServer: Webserv\r\n" + GetConnectionStatut() + "\r\n\r\n");
+}
+
+std::string HeaderResponse::code_301(void) {
+	return ("HTTP/1.1 301 Moved Permanently\r\nLocation: " + GetNewLocation() + "\r\nDate: " + this->GetCurrentTime() + "\r\nServer: Webserv\r\nContent-Length: 0\r\n" + GetConnectionStatut() + "\r\n\r\n");
 }
 
 std::string HeaderResponse::code_400(void) {
@@ -522,6 +582,10 @@ std::string HeaderResponse::GetCurrentTime( void ) {
 	return (std::string(ptr));
 }
 
+std::string HeaderResponse::GetNewLocation(void) {
+	return (this->config->locationConfig[indexLocationConfig]._return.second);
+}
+
 //Setters
 
 void HeaderResponse::SetBuffer(std::string str) {
@@ -534,7 +598,8 @@ void HeaderResponse::SetFileSize(void) {
 	std::ostringstream oss;
 	std::string size;
 
-	pathfile = "." + pathfile;
+	if (pathfile.front() != '.')
+		pathfile = "." + pathfile;
 	if (stat(pathfile.c_str(), &s) == -1) {
 		if (stat(DEFAULT_ERROR_PAGE, &s) == -1) {
 			logs("error stat");
@@ -559,19 +624,86 @@ void HeaderResponse::SetFileSize(void) {
 	return ;
 }
 
+//LS
+
+std::string HeaderResponse::PerformListing(std::string& path) {
+	std::string			pathfile;
+	std::string			buffer;
+	std::string			href;
+	std::stringstream	size;
+	DIR*				directory;
+	std::stringstream	ss;
+	struct stat			s_stat;
+	struct dirent*		s_dir;
+
+	pathfile = "." + path;
+	directory = opendir(pathfile.c_str());
+	if (directory == NULL) {
+		logs("directory null");
+		this->error = true;
+		this->request.SetError(NOT_FOUND);
+		return ("");
+	}
+	while ((s_dir = readdir(directory)) != NULL) {
+		pathfile = "." + path + s_dir->d_name;
+		logs(s_dir->d_name);
+		if (stat(pathfile.c_str(), &s_stat) != -1) {
+			if (s_stat.st_mode & S_IFDIR) {
+				pathfile = s_dir->d_name + std::string("/");
+				size << "-";
+				href = s_dir->d_name + std::string("/");
+			}
+			else if (s_stat.st_mode & S_IFREG) {
+				size << s_stat.st_size;
+				href = s_dir->d_name;
+			}
+			ss << "<tr><td style=\"text-align: left;\"><a href= "<< href << ">" << s_dir->d_name << "</a></td><td style=\"text-align: left;\">" << ctime(&s_stat.st_mtime) << "</td><td style=\"text-align: left;\">" << size.str() << "</td></tr>";
+			size.str("");
+		}
+	}
+	closedir(directory);
+	buffer = ss.str();
+	return (buffer);
+}
+
 //CGI
 
-std::string HeaderResponse::PerformCGI(void)
+std::string HeaderResponse::PerformCGI(std::string path)
 {
+	std::string tmp_env[4] = {"REQUEST_METHOD=", "QUERY_STRING=", "SCRIPT_NAME=", "CONTENT_LENGTH="};
+	std::string	tmp_args[2];
 	pid_t	pid;
 	char 	buf[4096];
-	char	*envp[] = {(char*)"REQUEST_METHOD=GET", (char*)"SCRIPT_NAME=test.bash", (char*)"CONTENT_LENGTH=0"};
+	char**	envp;
+	char **args;
     int		pipe_out[2];
 
 	//Create envp
-
-
+	tmp_env[0].append(this->request.getPairs()["Method:"]);
+	tmp_env[1].append("NULL");
+	tmp_env[2].append(this->request.getPairs()["Request-Target:"]);
+	tmp_env[3].append("0");
 	//
+	if (tmp_env[2].find(".bash") != std::string::npos)
+		tmp_args[0] = "/bin/bash";
+	else
+		tmp_args[0] = "/bin/php"; //à modifier
+	tmp_args[1] = this->request.getPairs()["Request-Target:"];
+	tmp_args[1].erase(tmp_args[1].begin());
+	//
+	envp = new char*[4 + 1];
+	if (!envp)
+		exit(1);
+	for (int i = 0; i < 4; i++)
+		envp[i] = const_cast<char*>(tmp_env[i].c_str());
+	envp[4] = NULL;
+	//
+	args = new char*[2 + 1];
+	for (int i = 0; i < 2; i++)
+		args[i] = const_cast<char*>(tmp_args[i].c_str());
+	args[2] = NULL;
+	//
+	path = "." + path;
     if (pipe(pipe_out) == -1)
         return ("");
     pid = fork();
@@ -582,8 +714,7 @@ std::string HeaderResponse::PerformCGI(void)
         close(pipe_out[0]);
         close(pipe_out[1]);
 
-        //chdir(path);
-        char *args[] = {(char*)"/bin/bash", (char*)"test.bash", NULL};
+        chdir(path.c_str());
         if (execve(args[0], args, envp) == -1)
 			//free if necessary
             exit(1);
@@ -596,27 +727,9 @@ std::string HeaderResponse::PerformCGI(void)
         while ((n = read(pipe_out[0], buf, sizeof(buf))) > 0)
             answer.append(buf, n);
         waitpid(pid, NULL, 0);
+		delete[] envp;
 		close(pipe_out[0]);
         return (answer);
     }
 	return ("");
 }
-
-// HTTP/1.1 201 Created
-// Date: Wed, 18 Feb 2026 22:01:00 GMT
-// Server: nginx/1.18.0
-// Location: /api/users/43
-// Content-Type: application/json
-// Content-Length: 51
-
-// HTTP/1.1 200 OK
-// Date: Wed, 18 Feb 2026 22:00:00 GMT
-// Server: Apache/2.4.41 (Ubuntu)
-// Content-Type: text/html; charset=UTF-8
-// Content-Length: 138
-// Connection: keep-alive
-
-// HTTP/1.1 204 No Content
-// Date: Wed, 18 Feb 2026 22:02:00 GMT
-// Server: nginx/1.18.0
-// Connection: keep-alive
