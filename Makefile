@@ -3,17 +3,17 @@
 #                                                         :::      ::::::::    #
 #    Makefile                                           :+:      :+:    :+:    #
 #                                                     +:+ +:+         +:+      #
-#    By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+         #
+#    By: lomont <lomont@student.42.fr>              +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2026/02/15 23:56:24 by lomont            #+#    #+#              #
-#    Updated: 2026/03/29 12:20:56 by lomont           ###   ########.fr        #
+#    Updated: 2026/04/02 16:27:35 by lomont           ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
 NAME = webserv
 
-CXX ?= g++-15
-BASE_CFLAGS = -Wall -Wextra -Werror -g -std=c++98 -pedantic
+CXX ?= c++
+BASE_CFLAGS = -Wall -Wextra -Werror -std=c++98 -pedantic
 SANITIZE ?= 0
 
 ifeq ($(SANITIZE),1)
