@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   webserv.cpp                                        :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
+/*   By: lomont <lomont@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/18 23:17:19 by lomont            #+#    #+#             */
-/*   Updated: 2026/03/29 19:44:27 by lomont           ###   ########.fr       */
+/*   Updated: 2026/04/02 17:26:12 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -38,14 +38,17 @@ void handler(int signal) {
 
 void server::CreateNewClient(int newConnexion, struct sockaddr sockaddrClient, socklen_t socklenClient, int ServerSocket)
 {
+	struct epoll_event e_event;
 	int configIndex = FindServerConfig(ServerSocket);
 	Client *new_client = new Client(newConnexion, &this->config[configIndex]);
 	new_client->SetSockaddrClient(sockaddrClient);
 	new_client->SetSockLenClient(socklenClient);
 	map.insert(std::pair<int, Client *>(newConnexion, new_client));
 	fcntl(newConnexion, F_SETFL, O_NONBLOCK);
-	EV_SET(this->getevent(), newConnexion, EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, 0);
-	if (kevent(this->getEvenementQueue(), this->getevent(), 1, NULL, 0, NULL) == -1) {
+	e_event.events = EPOLLIN;
+	e_event.data.fd = newConnexion;
+	if (epoll_ctl(this->getEvenementQueue(), EPOLL_CTL_ADD, newConnexion, &e_event) == -1) {
+		logs("issue here");
 		close(newConnexion);
 		map.erase(newConnexion);
 		delete new_client;
@@ -70,18 +73,18 @@ void server::WaitForConnection(void)
 	Client *current;
 	struct sockaddr sockaddrClient;
 	socklen_t socklenClient;
-	const timespec kqueue_timeout = {2, 0};
-
+	epoll_event* s_event = new epoll_event[SIZE_TEVENT];
 	socklenClient = sizeof(sockaddrClient);
-	while (!g_stop)
-	{																													// laisser tourner le serveur tout le temps
+	while (!g_stop) // laisser tourner le serveur tout le temps
+	{							
+		logs("ici");										
 		CheckTimestamp(this->map);
-		if ((nbOfEvents = kevent(this->getEvenementQueue(), NULL, 0, this->getTevent(0), SIZE_TEVENT, &kqueue_timeout)) == -1) // si on recoit -1 de kevent alors crash => on stock dans nbOfEvents
+		if ((nbOfEvents = epoll_wait(this->getEvenementQueue(), s_event, SIZE_TEVENT, 2000)) == -1) // si on recoit -1 de kevent alors crash => on stock dans nbOfEvents
 			logs("Triggered event retrieval error");
 		for (int i = 0; i < nbOfEvents; i++)
 		{ // pour nombres d'events triggered
-			if ((serverSocket = this->findServerSocket(this->getTevent(i)->ident)) != -1)
-			{ // si event est un serveur socket
+			logs("event triggered");
+			if ((serverSocket = this->findServerSocket(s_event[i].data)) != -1) { // si event est un serveur socket
 				if ((newConnexion = accept(serverSocket, &sockaddrClient, &socklenClient)) == -1) // si accept fail -> crash
 					logs("Couldn't accept the connection");
 				else
@@ -89,14 +92,20 @@ void server::WaitForConnection(void)
 			}
 			else
 			{
-				current = FindCurrentClient(static_cast<int>(this->getTevent(i)->ident)); // on cherche le client associé au fd retourné par kevent => ce qui veut dire qu'un client nous a contacté
-				if (!current)															  // si on a rien on continue
+				current = FindCurrentClient(s_event[i].data.fd); // on cherche le client associé au fd retourné par kevent => ce qui veut dire qu'un client nous a contacté
+				if (!current) {
+					logs("current empty");														  // si on a rien on continue
 					continue;
+				}
 				current->RefreshTimestamp();
-				if (this->getTevent(i)->filter == EVFILT_READ)
+				if (s_event[i].events == EPOLLIN) {
+					logs("receive header");
 					current->ReceiveHeader(this->getEvenementQueue(), map);
-				else if (this->getTevent(i)->filter == EVFILT_WRITE)
+				}
+				else if (s_event[i].events == EPOLLOUT) {
+					logs("send answer");
 					current->ResponseToClient(map, this->getEvenementQueue(), this->config);
+				}
 			}
 		}
 	}
@@ -153,9 +162,9 @@ void server::ConfigureServer(void)
 	ServerSocket = new int[serverConfigCount];
 	if (!ServerSocket)
 		ft_crash("Memory allocation issue for ServerSocket", 6);
-	EvenementQueue = kqueue();
+	EvenementQueue = epoll_create(SIZE_TEVENT);
 	if (EvenementQueue == -1)
-		ft_crash("kqueue fd creation failed", 7);
+		ft_crash("epoll fd creation failed", 7);
 	this->sa = new struct sockaddr_in[serverConfigCount];
 	if (!this->sa)
 		ft_crash("Memory allocation issue for struct sa", 8);
@@ -173,18 +182,19 @@ void server::ConfigureServer(void)
 			ft_crash("Listen function failed", 11);
 		if (fcntl(ServerSocket[i], F_SETFL, O_NONBLOCK) == -1)
 			ft_crash("Fcntl function failed", 12);
-		EV_SET(&this->event, ServerSocket[i], EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, NULL);
-		if (kevent(EvenementQueue, &this->event, 1, NULL, 0, NULL) == -1)
-			ft_crash("kevent event addition failed", 12);
+		this->event.data.fd = ServerSocket[i];
+		this->event.events = EPOLLIN;
+		if (epoll_ctl(EvenementQueue, EPOLL_CTL_ADD, ServerSocket[i], &this->event) == -1)
+			ft_crash("epoll event addition failed", 12);
 	}
 }
 
-struct kevent *server::getTevent(int i)
+struct epoll_event *server::getTevent(int i)
 {
 	return (&this->tevent[i]);
 }
 
-struct kevent *server::getevent(void)
+struct epoll_event *server::getevent(void)
 {
 	return (&this->event);
 }
@@ -259,10 +269,12 @@ void server::FindOneConfiguration(const std::string &buffer, size_t pos, struct 
 	std::cout << "IP: " << conf->interfacePort.first << " Port: " << conf->interfacePort.second << std::endl;
 }
 
-int server::findServerSocket(uintptr_t &ident)
+int server::findServerSocket(epoll_data_t data)
 {
 	for (size_t i = 0; i < serverConfigCount; i++) {
-		if (static_cast<int>(ident) == ServerSocket[i]) {
+		std::cout << "data = " << data.fd << std::endl;
+		if (data.fd == ServerSocket[i]) {
+			std::cout << "HEREEEEEEE" << std::endl;
 			return (ServerSocket[i]);
 		}
 	}
@@ -307,7 +319,7 @@ void server::FindErrorPages(const std::string &buffer, size_t &positionLastAccol
 			xpos = pos;
 			while (!isspace(buffer[pos]))
 			{
-				if (!isnumber(buffer[pos]))
+				if (!isdigit(buffer[pos]))
 				{
 					brake = true;
 					break;
@@ -375,8 +387,7 @@ size_t FindNumbersOfLocation(const std::string &buffer, size_t positionLastAccol
 	size_t i;
 
 	i = 0;
-	while ((pos = buffer.find("location", pos)) <= positionLastAccolade)
-	{
+	while ((pos = buffer.find("location", pos)) <= positionLastAccolade) {
 		pos += 9;
 		i++;
 	};

@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   webserv.hpp                                        :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
+/*   By: lomont <lomont@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/15 23:09:55 by lomont            #+#    #+#             */
-/*   Updated: 2026/03/25 22:00:47 by lomont           ###   ########.fr       */
+/*   Updated: 2026/04/02 17:14:51 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -17,7 +17,7 @@
 #define	SIZE_TEVENT 64
 
 #include <sys/types.h>
-#include <sys/event.h>
+#include <sys/epoll.h>
 #include <sys/time.h>
 #include <sys/socket.h>
 #include <sys/errno.h>
@@ -60,13 +60,13 @@ class server
 	private:
 		struct sockaddr_in*	sa;
 		protoent* 			f;
-		struct kevent 		event; //event to monitor
-		struct kevent 		tevent[SIZE_TEVENT]; //triggered event
+		struct epoll_event 	event; //event to monitor
+		struct epoll_event 	tevent[SIZE_TEVENT]; //triggered event
 		int 				*ServerSocket;
 		int					EvenementQueue;
 		size_t				serverConfigCount;
 		struct config*		config;
-		std::map<int, Client*> map;
+		std::map<int, Client*>	map;
 		void				fillSockaddrStruct(int);
 	public:
 		//Constructors / Destructors
@@ -74,10 +74,10 @@ class server
 		~server(void);
 
 		//getters
-		struct kevent* 	getevent(void);
-		struct kevent* 	getTevent(int);
-		int				findServerSocket(uintptr_t &);
-		int&			getEvenementQueue(void);
+		struct epoll_event*	getevent(void);
+		struct epoll_event*	getTevent(int);
+		int					findServerSocket(epoll_data_t);
+		int&				getEvenementQueue(void);
 
 		//setters
 
@@ -96,8 +96,8 @@ class server
 		void	printConfig(struct LocationConfig*);
 		Client* FindCurrentClient(int);
 		void	CheckTimestamp(std::map<int, Client*>&);
-		int		FindServerConfig(int);
 
+		
 		//parsing functions
 		size_t	FindMethods(const std::string&, size_t, struct LocationConfig*, size_t&);
 		size_t	FindRoot(const std::string&, size_t, struct LocationConfig*, size_t&);
@@ -106,6 +106,7 @@ class server
 		size_t	FindReturn(const std::string&, size_t, struct LocationConfig*, size_t&);
 		size_t	FindUpload(const std::string&, size_t, struct LocationConfig*, size_t&);
 		size_t	FindCGIPass(const std::string&, size_t, struct LocationConfig*, size_t&);
+		int		FindServerConfig(int);
 };
 
 void				handler(int);
