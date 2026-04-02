@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   HeaderResponse.cpp                                 :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
+/*   By: lomont <lomont@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 04:02:28 by lomont            #+#    #+#             */
-/*   Updated: 2026/04/02 11:04:47 by lomont           ###   ########.fr       */
+/*   Updated: 2026/04/02 16:27:00 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -122,7 +122,7 @@ void HeaderResponse::HandleGet(void) {
 	}
 	FindPathFile(); //trouver le chemin complet du fichier
 	index = this->config->locationConfig[indexLocationConfig].index;
-	if (this->pathfile.back() == '/') {
+	if (this->pathfile[pathfile.size() - 1] == '/') {
 		if (!index.empty()) {
 			for (std::vector<std::string>::iterator it = index.begin(); it != index.end(); it++) {
 				path = std::string(".") + this->pathfile + *it;
@@ -292,12 +292,12 @@ std::string HeaderResponse::FindFileName(void) {
 		if (access(filename.c_str(), F_OK) != 0)
 			return (oss.str());
 		if (stat(filename.c_str(), &s_stat) == 0) {
-				if (s_stat.st_mtimespec.tv_sec < t_time.tv_sec
-						|| (s_stat.st_mtimespec.tv_sec == t_time.tv_sec && s_stat.st_mtimespec.tv_nsec < t_time.tv_nsec)
+				if (s_stat.st_mtim.tv_sec < t_time.tv_sec
+						|| (s_stat.st_mtim.tv_sec == t_time.tv_sec && s_stat.st_mtim.tv_nsec < t_time.tv_nsec)
 							|| t_time.tv_sec == 0) {
 						oldestFile = oss.str();
-						t_time.tv_sec = s_stat.st_mtimespec.tv_sec;
-						t_time.tv_nsec = s_stat.st_mtimespec.tv_nsec;
+						t_time.tv_sec = s_stat.st_mtim.tv_sec;
+						t_time.tv_nsec = s_stat.st_mtim.tv_nsec;
 				}
 		}
 		oss.str("");
@@ -597,7 +597,7 @@ void HeaderResponse::SetFileSize(void) {
 	std::ostringstream oss;
 	std::string size;
 
-	if (pathfile.front() != '.')
+	if (pathfile[0] != '.')
 		pathfile = "." + pathfile;
 	if (stat(pathfile.c_str(), &s) == -1) {
 		if (stat(DEFAULT_ERROR_PAGE, &s) == -1) {
