@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 04:02:28 by lomont            #+#    #+#             */
-/*   Updated: 2026/03/29 23:41:10 by lomont           ###   ########.fr       */
+/*   Updated: 2026/04/02 11:04:47 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -64,7 +64,6 @@ void HeaderResponse::CreateResponse(void) {
 	//Selon la route on va choisir les fonctions à utiliser
 	if (this->request.GetIsCGI() == true)
 		//TODO si erreur dans le script alors que faire?
-		//TODO revoir comment fonctionne un cgi
 		HandleCGI();
 	else if (this->request.GetMethod() == GET)
 		HandleGet();
@@ -728,8 +727,34 @@ std::string HeaderResponse::PerformCGI(std::string path)
             answer.append(buf, n);
         waitpid(pid, NULL, 0);
 		delete[] envp;
+		delete[] args;
 		close(pipe_out[0]);
         return (answer);
     }
 	return ("");
 }
+// 1. Gestion de l'entrée standard (STDIN) pour les requêtes POST
+//
+//Actuellement, seul un pipe de sortie (pipe_out) est créé pour capturer ce que le script écrit.
+//Il faut créer un second pipe (pipe d'entrée) et le rediriger vers le STDIN de votre processus enfant (le script) pour pouvoir lui envoyer le corps (body) des requêtes HTTP (indispensable pour les formulaires POST).
+//comme on a déjà le body de la requête http, il faut ouvrir le pipe et lui envoyer this->request->GetBody() avec write().
+
+//2. Compléter et parser les variables d'environnement (RFC 3875)
+//
+//Votre QUERY_STRING est actuellement codée en dur à "NULL". Vous devez extraire la vraie Query String depuis l'URI de la requête.
+//De nombreuses variables obligatoires manquent pour que ça fonctionne bien, notamment : REQUEST_METHOD //QUERY_STRING //CONTENT_LENGTH //CONTENT_TYPE //SCRIPT_FILENAME (ou l'équivalent que PHP attend pour trouver le fichier) //REDIRECT_STATUS=200 (le hack magique pour php-cgi).
+
+//3. Parsing des headers retournés par le script (dans HandleCGI)
+//
+//Le serveur coupe brutalement au premier \r\n\r\n. Or, un script CGI renvoie ses propres headers (ex: Content-Type, Status, Set-Cookie).
+//Vous devez extraire ces headers pour les intégrer à votre objet de réponse HTTP finale au lieu de les ignorer. Il faut également gérer le cas où le script ne renvoie pas de \r\n\r\n (erreur d'exécution).
+
+//4. Gestion des chemins des interpréteurs
+//
+//Les chemins vers bash et /bin/php sont codés en dur. Les chemins peuvent varier selon les systèmes (ex: /usr/bin/php).
+//Il serait plus robuste d'utiliser la configuration pour récupérer le chemin de l'interpréteur, ou d'exploiter directement le "shebang" (ex: #!/bin/bash) des fichiers executables pour ceux qui l'ont.
+
+//5. Sécurité et blocages (Timeout)
+//
+//Le waitpid actuel est bloquant. Si le script PHP ou Bash entre dans une boucle infinie, votre serveur Web sera complètement bloqué.
+//Il faut implémenter un mécanisme de timeout (par exemple via un waitpid asynchrone ou kill après X secondes) pour interrompre le script s'il met trop de temps.
