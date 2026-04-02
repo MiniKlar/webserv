@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   client.cpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
+/*   By: lomont <lomont@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/03/02 00:26:06 by lomont            #+#    #+#             */
-/*   Updated: 2026/03/25 22:41:28 by lomont           ###   ########.fr       */
+/*   Updated: 2026/04/02 17:30:09 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -155,16 +155,17 @@ void Client::CloseConnection(std::map<int, Client*>& map, bool deleteFromMap) {
 }
 
 void Client::ChangeKeventState(int& fdQueue, bool disableRead) {
-	struct kevent ptr[2];
+	struct epoll_event ptr;
+	ptr.data.fd = this->fd;
 	if (disableRead) {
-		EV_SET(&ptr[0], fd, EVFILT_READ, EV_DISABLE, 0, 0, 0);
-		EV_SET(&ptr[1], fd, EVFILT_WRITE, EV_ADD | EV_ENABLE, 0, 0, 0);
+		ptr.events = EPOLLOUT;
+		epoll_ctl(fdQueue, EPOLL_CTL_MOD, this->fd, &ptr);
 	}
 	else {
-		EV_SET(&ptr[0], fd, EVFILT_WRITE, EV_DISABLE, 0, 0, 0);
-		EV_SET(&ptr[1], fd, EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, 0);
+		ptr.events = EPOLLIN;
+		epoll_ctl(fdQueue, EPOLL_CTL_MOD, this->fd, &ptr);
 	}
-	kevent(fdQueue, ptr, 2, NULL, 0, NULL);
+	
 }
 
 void Client::InternalError(int& fdQueue) {

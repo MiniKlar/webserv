@@ -2,7 +2,7 @@
 #define CLIENT_HPP
 
 #include <sys/socket.h>
-#include <sys/event.h>
+#include <sys/epoll.h>
 #include "HeaderRequest.hpp"
 #include "HeaderResponse.hpp"
 #include "utils.hpp"
@@ -46,7 +46,7 @@ class Client
 		void					ResponseToClient(std::map<int, Client*>&, int&, struct config*);
 		void					ChangeKeventState(int&, bool);
 		void					InternalError(int&);
-		bool					CheckErrors(std::string&);
+		//bool					CheckErrors(std::string&);
 		void					CloseConnection(std::map<int, Client*>&, bool);
 		void					ResizeBuffer(std::string&);
 		void					CleanClient(void);
