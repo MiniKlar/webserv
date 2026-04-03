@@ -669,9 +669,14 @@ std::string HeaderResponse::PerformListing(std::string& path) {
 
 std::string get_exec(std::string path)
 {
+	path = path + "/test.bash";
 	std::ifstream file(path.c_str());
 	if (!file.is_open())
+	{
+		logs("can't open script");
 		return ("");
+	}
+		
 	std::string line;
 	std::getline(file, line);
 	if (line[0] != '#' || line[1] != '!')
@@ -706,13 +711,13 @@ char ** create_env(HeaderRequest& request, std::string path)
 	oss << request.GetBody().length();
 	tmp_env[3].append(oss.str());
 	tmp_env[4].append(request.getPairs()["Content-Type:"]);
-	tmp_env[5].append(path);
+	tmp_env[5].append(path + "/test.bash");
 
 	envp = new char*[7 + 1];
 	if (!envp)
 		exit(1);
 	for (int i = 0; i < 7; i++)
-		envp[i] = const_cast<char*>(tmp_env[i].c_str());
+		envp[i] = strdup(tmp_env[i].c_str());
 	envp[7] = NULL;
 	return (envp);
 }
@@ -728,8 +733,8 @@ char ** create_args(HeaderRequest& request, std::string path)
     	return (NULL);
 	args = new char*[2 + 1];
 	for (int i = 0; i < 2; i++)
-		args[i] = const_cast<char*>(tmp_args[i].c_str());
-	args[2] = NULL;	
+		args[i] = strdup(tmp_args[i].c_str());
+	args[2] = NULL;
 	return (args);
 }
 
@@ -780,31 +785,26 @@ std::string HeaderResponse::PerformCGI(std::string path)
 {
 	pid_t	pid;
     int		pipe_out[2];
-    int		pipe_in[2];
+	std::string buffer;
+	path = "." + path;
+	int temp_fd;
+	temp_fd = open("tmp", O_WRONLY | O_CREAT);
 
 	//Create envp
  	char**	envp = create_env(this->request, path);
 	char **args = create_args(this->request, path);
-	path = "." + path;
 
 	if (pipe(pipe_out) == -1)
 	{
 		return ("");
 	}
-	if (pipe(pipe_in) == -1)
-	{
-		close(pipe_out[0]);
-		close(pipe_out[1]);
-		return ("");
-	}
+	write(temp_fd, this->request.GetBody().c_str(), this->request.GetBody().size());
     pid = fork();
     if (pid == 0)
     {
-		dup2(pipe_in[0], STDIN_FILENO);
+		dup2(pipe_out[0], STDIN_FILENO);
         dup2(pipe_out[1], STDOUT_FILENO);
-		
-		close(pipe_in[0]);
-		close(pipe_in[1]);
+
         close(pipe_out[0]);
         close(pipe_out[1]);
 
@@ -816,43 +816,14 @@ std::string HeaderResponse::PerformCGI(std::string path)
     else
     {
 		close(pipe_out[1]);
-        close(pipe_in[0]);
-		write(pipe_in[1], this->request.GetBody().c_str(), this->request.GetBody().size());
-		close(pipe_in[1]);
+		close(temp_fd);
 
 		int flags = fcntl(pipe_out[0], F_GETFL);
 		fcntl(pipe_out[0], F_SETFL, flags | O_NONBLOCK);
-
-		this->buffer = read_cgi_output_with_timeout(pipe_out[0], pid, 5);
+		buffer = read_cgi_output_with_timeout(pipe_out[0], pid, 20);
     }
 	delete[] envp;
 	delete[] args;
 	close(pipe_out[0]);
-	return (this->buffer);
+	return (buffer);
 }
-
-// 1. Gestion de l'entrée standard (STDIN) pour les requêtes POST
-//
-//Actuellement, seul un pipe de sortie (pipe_out) est créé pour capturer ce que le script écrit.
-//Il faut créer un second pipe (pipe d'entrée) et le rediriger vers le STDIN de votre processus enfant (le script) pour pouvoir lui envoyer le corps (body) des requêtes HTTP (indispensable pour les formulaires POST).
-//comme on a déjà le body de la requête http, il faut ouvrir le pipe et lui envoyer this->request->GetBody() avec write().
-
-//2. Compléter et parser les variables d'environnement (RFC 3875)
-//
-//Votre QUERY_STRING est actuellement codée en dur à "NULL". Vous devez extraire la vraie Query String depuis l'URI de la requête.
-//De nombreuses variables obligatoires manquent pour que ça fonctionne bien, notamment : REQUEST_METHOD //QUERY_STRING //CONTENT_LENGTH //CONTENT_TYPE //SCRIPT_FILENAME (ou l'équivalent que PHP attend pour trouver le fichier) //REDIRECT_STATUS=200 (le hack magique pour php-cgi).
-
-//3. Parsing des headers retournés par le script (dans HandleCGI)
-//
-//Le serveur coupe brutalement au premier \r\n\r\n. Or, un script CGI renvoie ses propres headers (ex: Content-Type, Status, Set-Cookie).
-//Vous devez extraire ces headers pour les intégrer à votre objet de réponse HTTP finale au lieu de les ignorer. Il faut également gérer le cas où le script ne renvoie pas de \r\n\r\n (erreur d'exécution).
-
-//4. Gestion des chemins des interpréteurs
-//
-//Les chemins vers bash et /bin/php sont codés en dur. Les chemins peuvent varier selon les systèmes (ex: /usr/bin/php).
-//Il serait plus robuste d'utiliser la configuration pour récupérer le chemin de l'interpréteur, ou d'exploiter directement le "shebang" (ex: #!/bin/bash) des fichiers executables pour ceux qui l'ont.
-
-//5. Sécurité et blocages (Timeout)
-//
-//Le waitpid actuel est bloquant. Si le script PHP ou Bash entre dans une boucle infinie, votre serveur Web sera complètement bloqué.
-//Il faut implémenter un mécanisme de timeout (par exemple via un waitpid asynchrone ou kill après X secondes) pour interrompre le script s'il met trop de temps.
