@@ -667,49 +667,144 @@ std::string HeaderResponse::PerformListing(std::string& path) {
 
 //CGI
 
-std::string HeaderResponse::PerformCGI(std::string path)
+std::string get_exec(std::string path)
 {
-	std::string tmp_env[4] = {"REQUEST_METHOD=", "QUERY_STRING=", "SCRIPT_NAME=", "CONTENT_LENGTH="};
-	std::string	tmp_args[2];
-	pid_t	pid;
-	char 	buf[4096];
-	char**	envp;
-	char **args;
-    int		pipe_out[2];
-
-	//Create envp
-	tmp_env[0].append(this->request.getPairs()["Method:"]);
-	tmp_env[1].append("NULL");
-	tmp_env[2].append(this->request.getPairs()["Request-Target:"]);
-	tmp_env[3].append("0");
-	//
-	if (tmp_env[2].find(".bash") != std::string::npos)
-		tmp_args[0] = "/bin/bash";
+	std::ifstream file(path.c_str());
+	if (!file.is_open())
+		return ("");
+	std::string line;
+	std::getline(file, line);
+	if (line[0] != '#' || line[1] != '!')
+		return ("");
 	else
-		tmp_args[0] = "/bin/php"; //à modifier
-	tmp_args[1] = this->request.getPairs()["Request-Target:"];
-	tmp_args[1].erase(tmp_args[1].begin());
-	//
-	envp = new char*[4 + 1];
+	{
+		line.erase(0,2);
+		size_t pos = line.find_first_not_of(" \r\t");
+		if (pos != std::string::npos)
+			line = line.substr(pos);
+	}
+	return (line);
+}
+
+std::string get_query_string(std::string uri)
+{
+	size_t pos = uri.find("?");
+	if (pos != std::string::npos)
+		return (uri.substr(pos + 1));
+	return ("");
+}
+
+char ** create_env(HeaderRequest& request, std::string path)
+{
+	char**	envp;
+	std::ostringstream	oss;
+	std::string tmp_env[7] = {"REQUEST_METHOD=", "QUERY_STRING=", "SCRIPT_NAME=", "CONTENT_LENGTH=", "CONTENT_TYPE=", "SCRIPT_FILENAME=", "REDIRECT_STATUS=200"};
+
+	tmp_env[0].append(request.getPairs()["Method:"]);
+	tmp_env[1].append(get_query_string(request.getPairs()["Request-Target:"]));
+	tmp_env[2].append(request.getPairs()["Request-Target:"]);
+	oss << request.GetBody().length();
+	tmp_env[3].append(oss.str());
+	tmp_env[4].append(request.getPairs()["Content-Type:"]);
+	tmp_env[5].append(path);
+
+	envp = new char*[7 + 1];
 	if (!envp)
 		exit(1);
-	for (int i = 0; i < 4; i++)
+	for (int i = 0; i < 7; i++)
 		envp[i] = const_cast<char*>(tmp_env[i].c_str());
-	envp[4] = NULL;
-	//
+	envp[7] = NULL;
+	return (envp);
+}
+
+char ** create_args(HeaderRequest& request, std::string path)
+{
+	char **args;
+	std::string tmp_args[2];
+	tmp_args[1] = request.getPairs()["Request-Target:"];
+	tmp_args[1].erase(tmp_args[1].begin());
+	tmp_args[0] = get_exec(path);
+	if (tmp_args[0].empty())
+    	return (NULL);
 	args = new char*[2 + 1];
 	for (int i = 0; i < 2; i++)
 		args[i] = const_cast<char*>(tmp_args[i].c_str());
-	args[2] = NULL;
-	//
+	args[2] = NULL;	
+	return (args);
+}
+
+bool is_timeout(const timeval& start, int sec_limit)
+{
+    timeval now;
+    gettimeofday(&now, NULL);
+    return (now.tv_sec - start.tv_sec > sec_limit);
+}
+
+std::string read_cgi_output_with_timeout(int fd, pid_t pid, int timeout_sec)
+{
+    char buf[4096];
+    std::string buffer;
+    ssize_t n;
+    timeval start;
+    gettimeofday(&start, NULL);
+
+    while (1)
+    {
+        n = read(fd, buf, sizeof(buf));
+        if (n > 0)
+            buffer.append(buf, n);
+        else if (n == -1 && errno != EAGAIN)
+            return "";
+
+        int ret = waitpid(pid, NULL, WNOHANG);
+        if (ret == pid)
+        {
+            while ((n = read(fd, buf, sizeof(buf))) > 0)
+                buffer.append(buf, n);
+            return buffer;
+        }
+
+        if (is_timeout(start, timeout_sec))
+        {
+            kill(pid, SIGKILL);
+            waitpid(pid, NULL, 0);
+            logs("CGI script killed due to timeout");
+            return "";
+        }
+        usleep(10000);
+    }
+}
+
+
+std::string HeaderResponse::PerformCGI(std::string path)
+{
+	pid_t	pid;
+    int		pipe_out[2];
+    int		pipe_in[2];
+
+	//Create envp
+ 	char**	envp = create_env(this->request, path);
+	char **args = create_args(this->request, path);
 	path = "." + path;
-    if (pipe(pipe_out) == -1)
-        return ("");
+
+	if (pipe(pipe_out) == -1)
+	{
+		return ("");
+	}
+	if (pipe(pipe_in) == -1)
+	{
+		close(pipe_out[0]);
+		close(pipe_out[1]);
+		return ("");
+	}
     pid = fork();
     if (pid == 0)
     {
+		dup2(pipe_in[0], STDIN_FILENO);
         dup2(pipe_out[1], STDOUT_FILENO);
-
+		
+		close(pipe_in[0]);
+		close(pipe_in[1]);
         close(pipe_out[0]);
         close(pipe_out[1]);
 
@@ -720,19 +815,22 @@ std::string HeaderResponse::PerformCGI(std::string path)
     }
     else
     {
-        close(pipe_out[1]);
-        size_t n;
-        std::string answer;
-        while ((n = read(pipe_out[0], buf, sizeof(buf))) > 0)
-            answer.append(buf, n);
-        waitpid(pid, NULL, 0);
-		delete[] envp;
-		delete[] args;
-		close(pipe_out[0]);
-        return (answer);
+		close(pipe_out[1]);
+        close(pipe_in[0]);
+		write(pipe_in[1], this->request.GetBody().c_str(), this->request.GetBody().size());
+		close(pipe_in[1]);
+
+		int flags = fcntl(pipe_out[0], F_GETFL);
+		fcntl(pipe_out[0], F_SETFL, flags | O_NONBLOCK);
+
+		this->buffer = read_cgi_output_with_timeout(pipe_out[0], pid, 5);
     }
-	return ("");
+	delete[] envp;
+	delete[] args;
+	close(pipe_out[0]);
+	return (this->buffer);
 }
+
 // 1. Gestion de l'entrée standard (STDIN) pour les requêtes POST
 //
 //Actuellement, seul un pipe de sortie (pipe_out) est créé pour capturer ce que le script écrit.

@@ -23,6 +23,7 @@
 #include <sys/errno.h>
 #include <sys/uio.h>
 #include <netdb.h>
+#include <fstream>
 #include <unistd.h>
 #include <fcntl.h>
 #include <signal.h>
