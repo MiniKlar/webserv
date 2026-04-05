@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/03/02 00:26:06 by lomont            #+#    #+#             */
-/*   Updated: 2026/03/25 22:41:28 by lomont           ###   ########.fr       */
+/*   Updated: 2026/04/05 14:29:55 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,16 +15,16 @@
 
 //Constructor
 
-Client::Client(int socket_fd, struct config* setConfig) : fd(socket_fd), config(setConfig), pos(0), socklenClient(0), headerBuffer(""), headerBody(""), _request(), _response(), bytesSent(0), headerFound(false), timestamp(time(NULL)) {
+Client::Client(int socket_fd, struct config* setConfig) : fd(socket_fd), timestamp(time(NULL)), headerFound(false), pos(0), bytesSent(0), socklenClient(0), headerBuffer(""), headerBody(""), _request(), _response(), config(setConfig) {
 	memset(&this->sockaddrClient, 0, sizeof(this->sockaddrClient));
-	logs("A new client has been created");
+	ft_logs("A new client has been created");
 	return;
 }
 
 //Destructor
 
 Client::~Client(void) {
-	logs("A client has requested to close the connection after his request, deleting client socket");
+	ft_logs("A client has requested to close the connection after his request, deleting client socket");
 	return ;
 }
 
@@ -168,7 +168,7 @@ void Client::ChangeKeventState(int& fdQueue, bool disableRead) {
 }
 
 void Client::InternalError(int& fdQueue) {
-	logs("here");
+	ft_logs("here");
 	this->_request = HeaderRequest(INTERNAL);
 	ChangeKeventState(fdQueue, true);
 }
