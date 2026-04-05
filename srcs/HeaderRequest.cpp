@@ -6,25 +6,25 @@
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 04:01:30 by lomont            #+#    #+#             */
-/*   Updated: 2026/03/26 00:04:33 by lomont           ###   ########.fr       */
+/*   Updated: 2026/04/05 14:32:22 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "HeaderRequest.hpp"
+#include "headerRequest.hpp"
 #include "webserv.hpp"
 
 //Constructor
 
-HeaderRequest::HeaderRequest(void) : method(OTHER), body(""), error(OK) {
+HeaderRequest::HeaderRequest(void) : error(OK), method(OTHER), body("") {
 	return ;
 }
 
-HeaderRequest::HeaderRequest(std::string bufferHeader) : method(OTHER), body(""), error(OK), isCGI(false), authorized(false) {
+HeaderRequest::HeaderRequest(std::string bufferHeader) : isCGI(false), authorized(false), error(OK), method(OTHER), body("") {
 	ParseHeaderRequest(bufferHeader);
 	return ;
 }
 
-HeaderRequest::HeaderRequest(Error err) : method(OTHER), body(""), error(err) {
+HeaderRequest::HeaderRequest(Error err) : error(err), method(OTHER), body("") {
 	return ;
 }
 
@@ -125,7 +125,7 @@ void HeaderRequest::ParseFirstLine(std::string& bufferHeader) {
 			case 1:
 				key = "Request-Target:";
 				if (value.find(".php") != std::string::npos || value.find(".bash") != std::string::npos) {
-					logs("c'est un CGI");
+					ft_logs("c'est un CGI");
 					this->isCGI = true;
 				}
 				break;
