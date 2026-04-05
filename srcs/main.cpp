@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/15 23:06:49 by lomont            #+#    #+#             */
-/*   Updated: 2026/03/07 23:39:21 by lomont           ###   ########.fr       */
+/*   Updated: 2026/04/05 13:26:26 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,7 +14,7 @@
 
 int main(int argc, char** argv) {
 	if (argc > 3)
-		ft_error("To start correctly a webserver, please write \"./webserv your_configuration_file\"");
+		ft_error("To start correctly a web server, please type \"./webserv your_configuration_file\"");
 	else if (argc == 2)
 		server webserv(argv[argc - 1]);
 	else
