@@ -1,10 +1,65 @@
-<html><body>
-<h1>An error occurred.</h1>
-<p>Sorry, the page you are looking for is currently unavailable.<br>
-Please try again later.</p>
-<p>If you are the system administrator of this resource then you should check
-the error log for details.</p>
-<p><em>Faithfully yours, lomont.</em></p>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Erreur</title>
+  <style>
+    :root {
+      --bg-top: #fff7ed;
+      --bg-bottom: #ffedd5;
+      --card: #ffffff;
+      --text: #1c1917;
+      --muted: #57534e;
+      --accent: #ea580c;
+      --accent-strong: #c2410c;
+      --border: #fdba74;
+    }
 
+    * {
+      box-sizing: border-box;
+    }
 
-</body></html>
+    body {
+      margin: 0;
+      font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+      color: var(--text);
+      background: linear-gradient(180deg, var(--bg-top) 0%, var(--bg-bottom) 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .panel {
+      width: min(680px, 100%);
+      background: var(--card);
+      border: 2px solid var(--border);
+      border-radius: 14px;
+      box-shadow: 0 18px 32px rgba(120, 53, 15, 0.15);
+      padding: 24px;
+    }
+
+    h1 {
+      margin: 0 0 16px;
+      font-size: clamp(1.5rem, 4vw, 2rem);
+    }
+
+    p {
+      margin: 0 0 16px;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <main class="panel">
+    <h1>An error occurred.</h1>
+    <p>Sorry, the page you are looking for is currently unavailable.<br>
+    Please try again later.</p>
+    <p>If you are the system administrator of this resource then you should check
+    the error log for details.</p>
+    <p><em>Faithfully yours, lomont.</em></p>
+  </main>
+</body>
+</html>
