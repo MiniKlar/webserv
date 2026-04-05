@@ -6,22 +6,22 @@
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 04:02:28 by lomont            #+#    #+#             */
-/*   Updated: 2026/04/02 11:04:47 by lomont           ###   ########.fr       */
+/*   Updated: 2026/04/05 22:22:33 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "HeaderResponse.hpp"
+#include "headerResponse.hpp"
 #include "webserv.hpp"
 
 //Constructors
 
-HeaderResponse::HeaderResponse(HeaderRequest& setRequest, struct config* setConfig) : request(setRequest), config(setConfig), header(""), buffer(""), bodySizePrint("0"), pathfile(""), indexLocationConfig(0), bodySize(0), error(false), parsed(false), cookie(false) {
+HeaderResponse::HeaderResponse(HeaderRequest& setRequest, struct config* setConfig) : cookie(false), error(false), parsed(false), bodySize(0), indexLocationConfig(0), header(""), buffer(""), bodySizePrint("0"), pathfile(""), config(setConfig), request(setRequest){
 	//Create the HeaderResponse depending the method and/or the file is a CGI
 	CreateResponse();
 	return ;
 }
 
-HeaderResponse::HeaderResponse(void) : request(HeaderRequest()), config(NULL), header(""), buffer(""), bodySizePrint(""), pathfile(""), indexLocationConfig(0), bodySize(0), error(false), parsed(false) {
+HeaderResponse::HeaderResponse(void) : cookie(false), error(false), parsed(false), bodySize(0), indexLocationConfig(0), header(""), buffer(""), bodySizePrint(""), pathfile(""), config(NULL), request(HeaderRequest()) {
 	return ;
 }
 
@@ -74,13 +74,18 @@ void HeaderResponse::CreateResponse(void) {
 	if (!this->error)
 		GetHeaderResponse();
 	if (this->header.empty()) {
+		if (pathfile == "ERROR") {
+			this->buffer = default_error_page();
+			this->bodySize = buffer.size();
+			this->bodySizePrint = "";
+		}
 		SearchErrorPage();
 		if (!pathfile.empty()) {
 			SetFileSize();
 			OpenFile();
 		}
 		this->header = CheckErrors();
-		logs(header);
+		ft_logs(header);
 	}
 	if (cookie) {
 		size_t pos;
@@ -99,6 +104,7 @@ void HeaderResponse::HandleCGI(void) {
 
 	//TODO gérer les headers dynamiques
 	buffer = PerformCGI(this->config->locationConfig[indexLocationConfig].root);
+
 	size_t pos = buffer.find("\r\n\r\n") + 4;
 	this->buffer = buffer.substr(pos, buffer.size() - pos);
 	this->bodySize = this->buffer.size();
@@ -135,12 +141,12 @@ void HeaderResponse::HandleGet(void) {
 		}
 		if (!found) {
 			if (this->config->locationConfig[indexLocationConfig].autoindex == true) {
-				logs("tu es sur une route '/' avec autoindex on");
+				ft_logs("tu es sur une route '/' avec autoindex on");
 				HandleAutoIndex();
 				this->bodySize = buffer.size();
 				ss << bodySize;
 				this->bodySizePrint = ss.str();
-				logs(this->bodySizePrint);
+				ft_logs(this->bodySizePrint);
 				return ;
 			}
 		}
@@ -157,13 +163,13 @@ void HeaderResponse::HandleAutoIndex(void) {
 	std::string buffer;
 
 	pathfile = this->pathfile;
-	logs("pathfile for autoindex = " + pathfile);
+	ft_logs("pathfile for autoindex = " + pathfile);
 	header = "<html>\n<head><title>Index of " + pathfile + "</title></head>\n<body>\n<h1>Index of " + pathfile + "</h1><hr>\n<table width=\"100%\">\n<tr style=\"text-align: left;\"><th>Name</th><th>Last Modified</th><th>Size</th></tr>\n";
 	buffer = PerformListing(pathfile);
 	if (buffer.empty())
-		ft_crash("error autoindex", 100);
+		ft_crash("error autoindex"); //TODO renvoyer error 500
 	this->buffer = header + buffer + "</table>\n<hr>\n</body>\n</html>";
-	logs("buffer = [" + this->buffer + "]");
+	ft_logs("buffer = [" + this->buffer + "]");
 }
 
 void HeaderResponse::HandleDelete(void) {
@@ -190,12 +196,12 @@ void HeaderResponse::DeleteFile(void) {
 	std::string path = "." + pathfile;
 	std::cout << "pathfile à delete = [" << pathfile  << "]" << std::endl;
 	if (remove(path.c_str()) == -1) {
-		logs("Error: can't delete file; file not found");
+		ft_logs("Error: can't delete file; file not found");
 		this->request.SetError(NOT_FOUND);
 		this->error = true;
 		return;
 	}
-	logs("File deleted");
+	ft_logs("File deleted");
 	return ;
 }
 
@@ -310,7 +316,7 @@ void HeaderResponse::ParseBody() {
 
 	upload_path = this->config->locationConfig[indexLocationConfig].upload_store;
 	if (upload_path.empty()) {
-		logs("upload path empty");
+		ft_logs("upload path empty");
 		this->request.SetError(FORBIDDEN);
 		this->error = true;
 		return ;
@@ -334,30 +340,30 @@ void HeaderResponse::CreateImage(const std::string& bufferBody, std::string& bou
 		startpos = bufferBody.find("name=") + 6;
 		endpos = bufferBody.find(";", startpos);
 		name = bufferBody.substr(startpos, endpos - startpos - 1);
-		logs(name);
+		ft_logs(name);
 		startpos = bufferBody.find("filename=") + 10;
 		endpos = bufferBody.find("\r\n", startpos);
 		filename = bufferBody.substr(startpos, endpos - startpos - 1);
-		logs(filename);
+		ft_logs(filename);
 		startpos = bufferBody.find("Content-Type:") + 14;
 		endpos = bufferBody.find("\r\n", startpos);
 		image_png = bufferBody.substr(startpos, endpos - startpos);
-		logs(image_png);
+		ft_logs(image_png);
 
 		startpos = endpos + 4;
 		std::string delimiter = "\r\n" + boundary + "--";
-		logs(delimiter);
+		ft_logs(delimiter);
 		endpos = bufferBody.find(delimiter, startpos);
 		std::string image = bufferBody.substr(startpos, endpos - startpos);
 
 		std::string img_filename = uploadPath + FindFileName();
 		img_filename = "." + img_filename;
-		logs(img_filename);
+		ft_logs(img_filename);
 		int image_fd = open(img_filename.c_str(), O_CREAT | O_TRUNC | O_RDWR, S_IWUSR | S_IROTH | S_IRUSR | S_IRGRP);
 		if (image_fd == -1) {
 			this->error = true;
 			this->request.SetError(INTERNAL);
-			logs("Error while trying to create the new image");
+			ft_logs("Error while trying to create the new image");
 			return ;
 		}
 		write(image_fd, image.data(), image.size());
@@ -375,7 +381,7 @@ void HeaderResponse::CheckMethod(void) {
 	headerMethod = this->request.getPairs()["Method:"];
 	//check si la méthode fait parti des méthodes prises en charge par webserv
 	if (headerMethod != "GET" && headerMethod != "POST" && headerMethod != "DELETE") {
-		logs("Method not implemented");
+		ft_logs("Method not implemented");
 		this->request.SetError(NOT_IMPLEMENTED);
 		error = true;
 		return ;
@@ -388,11 +394,11 @@ void HeaderResponse::CheckMethod(void) {
 	}
 	if (!methodAccepted) {
 		if (!this->config->locationConfig[indexLocationConfig].location.empty()) {
-			logs("Location moved permanently");
+			ft_logs("Location moved permanently");
 			this->request.SetError(MOVED_PERMANENTLY);
 		}
 		else {
-			logs("Method not allowed by the route");
+			ft_logs("Method not allowed by the route");
 			this->request.SetError(NOT_ALLOWED);
 		}
 		error = true;
@@ -423,7 +429,7 @@ void HeaderResponse::FindPathFile(void) {
 	uri = this->config->locationConfig[indexLocationConfig].location;
 	root = this->config->locationConfig[indexLocationConfig].root;
 	this->pathfile = root + str;
-	logs("pathfile = [" + pathfile + "]");
+	ft_logs("pathfile = [" + pathfile + "]");
 	return ;
 }
 
@@ -521,6 +527,10 @@ std::string HeaderResponse::code_505(void) {
 	return ("HTTP/1.1 505 HTTP Version Not Supported\r\nDate: " + this->GetCurrentTime() + "\r\nServer: Webserv\r\n\r\n");
 }
 
+std::string HeaderResponse::default_error_page(void) {
+	return ("<body>\n<main class=\"panel\">\n<h1>An error occurred.</h1>\n<p>Sorry, the page you are looking for is currently unavailable.<br>\nPlease try again later.</p>\n<p>If you are the system administrator of this resource then you should check\nthe error log for details.</p>\n<p><em>Faithfully yours, lomont.</em></p>\n</main>\n</body>\n</html>");
+}
+
 //Getters
 
 std::string HeaderResponse::GetContentType(void) {
@@ -601,8 +611,9 @@ void HeaderResponse::SetFileSize(void) {
 		pathfile = "." + pathfile;
 	if (stat(pathfile.c_str(), &s) == -1) {
 		if (stat(DEFAULT_ERROR_PAGE, &s) == -1) {
-			logs("error stat");
-			return; //peut etre hard code une réponse d'erreur?
+			ft_logs("error stat");
+			pathfile = "ERROR";
+			error = true;
 		}
 		else {
 			this->request.SetError(NOT_FOUND);
@@ -611,11 +622,16 @@ void HeaderResponse::SetFileSize(void) {
 		}
 	}
 	if (s.st_mode & S_IFDIR) {
-		if (stat(DEFAULT_ERROR_PAGE, &s) == -1)
-			return; //peut etre hard code une réponse d'erreur?
-		this->request.SetError(NOT_FOUND);
-		pathfile = DEFAULT_ERROR_PAGE;
-		error = true;
+		if (stat(DEFAULT_ERROR_PAGE, &s) == -1) {
+			pathfile = "ERROR";
+			error = true;
+			return;
+		}
+		else {
+			this->request.SetError(NOT_FOUND);
+			pathfile = DEFAULT_ERROR_PAGE;
+			error = true;
+		}
 	}
 	bodySize = s.st_size;
 	oss << s.st_size;
@@ -638,14 +654,14 @@ std::string HeaderResponse::PerformListing(std::string& path) {
 	pathfile = "." + path;
 	directory = opendir(pathfile.c_str());
 	if (directory == NULL) {
-		logs("directory null");
+		ft_logs("directory null");
 		this->error = true;
 		this->request.SetError(NOT_FOUND);
 		return ("");
 	}
 	while ((s_dir = readdir(directory)) != NULL) {
 		pathfile = "." + path + s_dir->d_name;
-		logs(s_dir->d_name);
+		ft_logs(s_dir->d_name);
 		if (stat(pathfile.c_str(), &s_stat) != -1) {
 			if (s_stat.st_mode & S_IFDIR) {
 				pathfile = s_dir->d_name + std::string("/");
