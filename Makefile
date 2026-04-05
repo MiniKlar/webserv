@@ -6,7 +6,7 @@
 #    By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2026/02/15 23:56:24 by lomont            #+#    #+#              #
-#    Updated: 2026/03/29 12:20:56 by lomont           ###   ########.fr        #
+#    Updated: 2026/04/05 14:30:33 by lomont           ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -14,13 +14,14 @@ NAME = webserv
 
 CXX ?= g++-15
 BASE_CFLAGS = -Wall -Wextra -Werror -g -std=c++98 -pedantic
+INCLUDES = -I./srcs/includes
 SANITIZE ?= 0
 
 ifeq ($(SANITIZE),1)
 SANITIZE_FLAGS = -fsanitize=address
 endif
 
-CFLAGS = $(BASE_CFLAGS) $(SANITIZE_FLAGS)
+CFLAGS = $(BASE_CFLAGS) $(SANITIZE_FLAGS) $(INCLUDES)
 
 RM = rm -f
 OBJ_DIR = obj
@@ -28,9 +29,10 @@ OBJ_DIR = obj
 SRC = ./srcs/main.cpp \
 	./srcs/webserv.cpp \
 	./srcs/client.cpp \
-	./srcs/HeaderRequest.cpp \
-	./srcs/HeaderResponse.cpp \
+	./srcs/headerRequest.cpp \
+	./srcs/headerResponse.cpp \
 	./srcs/utils.cpp \
+	./srcs/parsing.cpp \
 
 OBJ = $(SRC:./srcs/%.cpp=$(OBJ_DIR)/%.o)
 
