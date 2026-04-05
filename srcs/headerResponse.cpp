@@ -5,8 +5,8 @@
 /*                                                    +:+ +:+         +:+     */
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2026/02/19 04:02:28 by lomont            #+#    #+#             */
-/*   Updated: 2026/04/05 22:22:33 by lomont           ###   ########.fr       */
+/*   Created: 2026/04/05 22:42:38 by lomont            #+#    #+#             */
+/*   Updated: 2026/04/06 01:01:28 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -75,17 +75,22 @@ void HeaderResponse::CreateResponse(void) {
 		GetHeaderResponse();
 	if (this->header.empty()) {
 		if (pathfile == "ERROR") {
-			this->buffer = default_error_page();
-			this->bodySize = buffer.size();
-			this->bodySizePrint = "";
-		}
-		SearchErrorPage();
-		if (!pathfile.empty()) {
-			SetFileSize();
-			OpenFile();
+			SearchErrorPage();
+			ft_logs(pathfile);
+			if (!pathfile.empty()) {
+				SetFileSize();
+				OpenFile();
+			}
+			else {
+				ft_logs("here");
+				this->buffer = default_error_page();
+				this->bodySize = buffer.size();
+				std::ostringstream oss;
+				oss << this->bodySize;
+				this->bodySizePrint = oss.str();
+			}
 		}
 		this->header = CheckErrors();
-		ft_logs(header);
 	}
 	if (cookie) {
 		size_t pos;
@@ -103,7 +108,8 @@ void HeaderResponse::HandleCGI(void) {
 	std::string			buffer;
 
 	//TODO gérer les headers dynamiques
-	buffer = PerformCGI(this->config->locationConfig[indexLocationConfig].root);
+	if (this->config->locationConfig)
+		buffer = PerformCGI(this->config->locationConfig[indexLocationConfig].root);
 
 	size_t pos = buffer.find("\r\n\r\n") + 4;
 	this->buffer = buffer.substr(pos, buffer.size() - pos);
@@ -115,11 +121,12 @@ void HeaderResponse::HandleCGI(void) {
 }
 
 void HeaderResponse::HandleGet(void) {
-	std::stringstream ss;
-	std::vector<std::string>			index;
-	std::string	path;
-	bool found = false;
+	std::stringstream			ss;
+	std::vector<std::string>	index;
+	std::string					path;
+	bool						found;
 
+	found = false;
 	if (this->request.getPairs()["Request-Target:"] == "/get-cookie") {
 		bodySize = 0;
 		bodySizePrint = "0";
@@ -127,31 +134,36 @@ void HeaderResponse::HandleGet(void) {
 		return ;
 	}
 	FindPathFile(); //trouver le chemin complet du fichier
-	index = this->config->locationConfig[indexLocationConfig].index;
-	if (this->pathfile.back() == '/') {
-		if (!index.empty()) {
-			for (std::vector<std::string>::iterator it = index.begin(); it != index.end(); it++) {
-				path = std::string(".") + this->pathfile + *it;
-				if (access(path.c_str(), F_OK) == 0) {
-					pathfile = path;
-					found = true;
-					break;
+	if (this->config->locationConfig) {
+		index = this->config->locationConfig[indexLocationConfig].index;
+		if (this->pathfile.back() == '/') {
+			if (!index.empty()) {
+				for (std::vector<std::string>::iterator it = index.begin(); it != index.end(); it++) {
+					path = std::string(".") + this->pathfile + *it;
+					if (access(path.c_str(), F_OK) == 0) {
+						pathfile = path;
+						found = true;
+						break;
+					}
+				}
+			}
+			if (!found) {
+				if (this->config->locationConfig[indexLocationConfig].autoindex == true) {
+					ft_logs("tu es sur une route '/' avec autoindex on");
+					HandleAutoIndex();
+					this->bodySize = buffer.size();
+					ss << bodySize;
+					this->bodySizePrint = ss.str();
+					ft_logs(this->bodySizePrint);
+					return ;
 				}
 			}
 		}
-		if (!found) {
-			if (this->config->locationConfig[indexLocationConfig].autoindex == true) {
-				ft_logs("tu es sur une route '/' avec autoindex on");
-				HandleAutoIndex();
-				this->bodySize = buffer.size();
-				ss << bodySize;
-				this->bodySizePrint = ss.str();
-				ft_logs(this->bodySizePrint);
-				return ;
-			}
-		}
 	}
+	ft_logs("tu es avant setfilesize");
 	SetFileSize(); //Trouver et set la taille du fichier qu'on va renvoyer
+	std::cout << this->request.GetError() << std::endl;
+	ft_logs("tu es apres setfilesize");
 	if (!this->error) //S'il n'y a pas eu d'erreur, alors on peut essayer d'ouvrir le fichier
 		OpenFile();
 	return ;
@@ -206,14 +218,24 @@ void HeaderResponse::DeleteFile(void) {
 }
 
 void HeaderResponse::SearchErrorPage(void) {
+	struct stat s;
 	int errorCode = this->request.GetError();
 	std::map<std::vector<int>, std::string>::iterator it = this->config->errorPage.begin();
 
 	for (; it != this->config->errorPage.end(); it++) {
 		const std::vector<int>& errorCodesKeys = it->first;
 		if (std::find(errorCodesKeys.begin(), errorCodesKeys.end(), errorCode) != errorCodesKeys.end()) {
-			pathfile = it->second;
-			return ;
+			pathfile = "." + it->second;
+			std::cout << pathfile << std::endl;
+			if (access(pathfile.c_str(), F_OK) == 0) {
+				if (stat(pathfile.c_str(), &s) == -1 || s.st_mode & S_IFDIR) {
+					pathfile.clear();
+					continue;
+				}
+				pathfile = it->second;
+				return ;
+			}
+			pathfile.clear();
 		}
 	}
 	pathfile.clear();
@@ -387,21 +409,23 @@ void HeaderResponse::CheckMethod(void) {
 		return ;
 	}
 	//check si le header est pris en charge par la location
-	methods = this->config->locationConfig[indexLocationConfig].methods;
-	for (std::vector<std::string>::iterator it = methods.begin(); it != methods.end(); it++) {
-		if (*it == headerMethod)
-			methodAccepted = true;
-	}
-	if (!methodAccepted) {
-		if (!this->config->locationConfig[indexLocationConfig].location.empty()) {
-			ft_logs("Location moved permanently");
-			this->request.SetError(MOVED_PERMANENTLY);
+	if (this->config->locationConfig) {
+		methods = this->config->locationConfig[indexLocationConfig].methods;
+		for (std::vector<std::string>::iterator it = methods.begin(); it != methods.end(); it++) {
+			if (*it == headerMethod)
+				methodAccepted = true;
 		}
-		else {
-			ft_logs("Method not allowed by the route");
-			this->request.SetError(NOT_ALLOWED);
+		if (!methodAccepted) {
+			if (!this->config->locationConfig[indexLocationConfig].location.empty()) {
+				ft_logs("Location moved permanently");
+				this->request.SetError(MOVED_PERMANENTLY);
+			}
+			else {
+				ft_logs("Method not allowed by the route");
+				this->request.SetError(NOT_ALLOWED);
+			}
+			error = true;
 		}
-		error = true;
 	}
 	return;
 }
@@ -426,8 +450,10 @@ void HeaderResponse::FindPathFile(void) {
 	if (error)
 		return ;
 	str = this->request.getPairs()["Request-Target:"];
-	uri = this->config->locationConfig[indexLocationConfig].location;
-	root = this->config->locationConfig[indexLocationConfig].root;
+	if (this->config->locationConfig) {
+		uri = this->config->locationConfig[indexLocationConfig].location;
+		root = this->config->locationConfig[indexLocationConfig].root;
+	}
 	this->pathfile = root + str;
 	ft_logs("pathfile = [" + pathfile + "]");
 	return ;
@@ -528,7 +554,7 @@ std::string HeaderResponse::code_505(void) {
 }
 
 std::string HeaderResponse::default_error_page(void) {
-	return ("<body>\n<main class=\"panel\">\n<h1>An error occurred.</h1>\n<p>Sorry, the page you are looking for is currently unavailable.<br>\nPlease try again later.</p>\n<p>If you are the system administrator of this resource then you should check\nthe error log for details.</p>\n<p><em>Faithfully yours, lomont.</em></p>\n</main>\n</body>\n</html>");
+	return ("<!DOCTYPE html>\n<html lang=\"fr\">\n<body>\n<main class=\"panel\">\n<h1>An error occurred.</h1>\n<p>Sorry, the page you are looking for is currently unavailable.<br>\nPlease try again later.</p>\n<p>If you are the system administrator of this resource then you should check\nthe error log for details.</p>\n<p><em>Faithfully yours, lomont.</em></p>\n</main>\n</body>\n</html>");
 }
 
 //Getters
@@ -603,43 +629,30 @@ void HeaderResponse::SetBuffer(std::string str) {
 }
 
 void HeaderResponse::SetFileSize(void) {
-	struct stat s;
-	std::ostringstream oss;
-	std::string size;
+	struct stat			s;
+	std::ostringstream	oss;
+	std::string			size;
 
 	if (pathfile.front() != '.')
 		pathfile = "." + pathfile;
 	if (stat(pathfile.c_str(), &s) == -1) {
-		if (stat(DEFAULT_ERROR_PAGE, &s) == -1) {
 			ft_logs("error stat");
 			pathfile = "ERROR";
 			error = true;
-		}
-		else {
 			this->request.SetError(NOT_FOUND);
-			pathfile = DEFAULT_ERROR_PAGE;
-			error = true;
-		}
 	}
 	if (s.st_mode & S_IFDIR) {
-		if (stat(DEFAULT_ERROR_PAGE, &s) == -1) {
-			pathfile = "ERROR";
-			error = true;
-			return;
-		}
-		else {
-			this->request.SetError(NOT_FOUND);
-			pathfile = DEFAULT_ERROR_PAGE;
-			error = true;
-		}
+		pathfile = "ERROR";
+		this->request.SetError(NOT_FOUND);
+		error = true;
 	}
-	bodySize = s.st_size;
-	oss << s.st_size;
-	bodySizePrint = oss.str();
+	if (pathfile != "ERROR") {
+		bodySize = s.st_size;
+		oss << s.st_size;
+		bodySizePrint = oss.str();
+	}
 	return ;
 }
-
-//LS
 
 std::string HeaderResponse::PerformListing(std::string& path) {
 	std::string			pathfile;
