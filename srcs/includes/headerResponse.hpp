@@ -1,12 +1,12 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   HeaderResponse.hpp                                 :+:      :+:    :+:   */
+/*   headerResponse.hpp                                 :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: lomont <lomont@student.42.fr>              +#+  +:+       +#+        */
+/*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 04:02:32 by lomont            #+#    #+#             */
-/*   Updated: 2026/04/02 16:24:54 by lomont           ###   ########.fr       */
+/*   Updated: 2026/04/06 20:13:35 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,41 +14,39 @@
 #define HEADERRESPONSE_HPP
 
 #define HTML_TYPE "text/html; charset=UTF-8"
-#define IMG_TYPE "multipart/form-data"
-#define DEFAULT_ERROR_PAGE "/www/default_error.html"
+#define TEXT_TYPE "text/plain"
+#define DEFAULT_ERROR_PAGE "./www/default_error.html"
 #define DEFAULT_UPLOAD_PATH "/www/uploads/"
 #define	FILE_LOCATION "/www"
 
-#include <ctime>
-#include <cstdlib>
-#include <iostream>
-#include <sys/stat.h>
-#include <cstdio>
-#include <map>
 #include <string>
+#include <sstream>
+#include <fstream>
+#include <ostream>
 #include <unistd.h>
-#include <fcntl.h>
 #include <dirent.h>
-#include <sys/wait.h>
-#include "HeaderRequest.hpp"
-#include "utils.hpp"
+#include <sys/stat.h>
+#include <signal.h>
+#include "headerRequest.hpp"
 
-struct config;
+struct	config;
+class	HeaderRequest;
 
 class HeaderResponse
 {
 	private:
-		HeaderRequest	request;
-		struct config	*config;
+		bool			cookie;
+		bool			error;
+		bool			parsed;
+		bool			isCGI;
+		off_t			bodySize;
+		size_t			indexLocationConfig;
 		std::string		header;
 		std::string		buffer;
 		std::string		bodySizePrint;
 		std::string		pathfile;
-		size_t			indexLocationConfig;
-		off_t			bodySize;
-		bool			error;
-		bool			parsed;
-		bool			cookie;
+		struct config	*config;
+		HeaderRequest	request;
 	public:
 
 		//Canonical form
@@ -74,10 +72,16 @@ class HeaderResponse
 		void			CheckMethod(void);
 		void			ParseBody(void);
 		void 			CreateImage(const std::string&, std::string&, std::string&);
+		bool			is_timeout(const timeval&, int);
+		std::string		get_exec(std::string);
+		std::string		get_query_string(std::string);
+		char**			create_env(HeaderRequest&, std::string&);
+		char**			create_args(char*);
 		std::string		FindFileName(void);
-		std::string		PerformCGI(std::string);
+		std::string		PerformCGI();
 		std::string		PerformListing(std::string&);
 		std::string		CheckErrors(void);
+		std::string		read_cgi_output_with_timeout(int, pid_t, int);
 
 		//Setters
 		void			SetFileSize(void);
@@ -108,6 +112,7 @@ class HeaderResponse
 		std::string 	code_500(void);
 		std::string 	code_501(void);
 		std::string 	code_505(void);
+		std::string		default_error_page(void);
 };
 
 #endif

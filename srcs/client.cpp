@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   client.cpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: lomont <lomont@student.42.fr>              +#+  +:+       +#+        */
+/*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/03/02 00:26:06 by lomont            #+#    #+#             */
-/*   Updated: 2026/04/02 17:30:09 by lomont           ###   ########.fr       */
+/*   Updated: 2026/04/06 20:02:01 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,16 +15,16 @@
 
 //Constructor
 
-Client::Client(int socket_fd, struct config* setConfig) : fd(socket_fd), config(setConfig), pos(0), socklenClient(0), headerBuffer(""), headerBody(""), _request(), _response(), bytesSent(0), headerFound(false), timestamp(time(NULL)) {
+Client::Client(int socket_fd, struct config* setConfig) : fd(socket_fd), timestamp(time(NULL)), headerFound(false), pos(0), bytesSent(0), socklenClient(0), headerBuffer(""), headerBody(""), _request(), _response(), config(setConfig) {
 	memset(&this->sockaddrClient, 0, sizeof(this->sockaddrClient));
-	logs("A new client has been created");
+	ft_logs("A new client has been created");
 	return;
 }
 
 //Destructor
 
 Client::~Client(void) {
-	logs("A client has requested to close the connection after his request, deleting client socket");
+	ft_logs("A client has requested to close the connection after his request, deleting client socket");
 	return ;
 }
 
@@ -32,19 +32,14 @@ void Client::ReceiveHeader(int& fdQueue, std::map<int, Client*>& map) {
 	char			buffer[4096];
 	ssize_t			received;
 	size_t			index;
+	size_t			xpos;
 	unsigned long	contentSize;
-	int				err;
 
 	received = recv(this->fd, buffer, sizeof(buffer) - 1, 0);
 	if (received == -1) {
-		err = errno;
-		if (err == EAGAIN || err == EWOULDBLOCK) {
-			if (!headerFound)
-				return ;
-		}
-		else
-			InternalError(fdQueue);
-		}
+		InternalError(fdQueue);
+		return ;
+	}
 	else if (received == 0) {
 		CloseConnection(map, true);
 		return ;
@@ -52,12 +47,27 @@ void Client::ReceiveHeader(int& fdQueue, std::map<int, Client*>& map) {
 	else if (received > 0) {
 		if (!headerFound) {
 			this->headerBuffer.append(buffer, received);
-			if (this->headerBuffer.find("\r\n\r\n") != std::string::npos) {
+			xpos = this->headerBuffer.find("\r\n\r\n");
+			if (xpos != std::string::npos) {
 				headerFound = true;
+				headerBody = this->headerBuffer.substr(xpos + 4, xpos + 4 - this->headerBuffer.length());
+				headerBuffer.resize(xpos + 4);
 				this->_request = HeaderRequest(this->headerBuffer);
 			}
-			if (received == static_cast<ssize_t>(this->headerBuffer.find("\r\n\r\n")) + 4)
+			pos += headerBody.length();
+			std::map<std::string, std::string>& pairs = this->_request.getPairs();
+			if (pairs.find("Content-Length:") != pairs.end()) {
+				if (pos >= strtol(pairs.find("Content-Length:")->second.c_str(), NULL, 10)) {
+					ft_logs(headerBody);
+					this->_request.SetBody(this->headerBody);
+					ChangeKeventState(fdQueue, true);
+					return ;
+				}
+			}
+			else if (this->_request.GetMethod() == GET || this->_request.GetMethod() == DELETE) {
 				ChangeKeventState(fdQueue, true);
+				return ;
+			}
 		}
 		else {
 			std::map<std::string, std::string>& pairs = this->_request.getPairs();
@@ -77,7 +87,7 @@ void Client::ReceiveHeader(int& fdQueue, std::map<int, Client*>& map) {
 					ChangeKeventState(fdQueue, true);
 					return ;
 				}
-				pos += received;
+				this->pos += received;
 				this->headerBody.append(buffer, received);
 				if (static_cast<unsigned long>(this->pos) == contentSize) {
 					this->_request.SetBody(this->headerBody);
@@ -93,18 +103,14 @@ void Client::ReceiveHeader(int& fdQueue, std::map<int, Client*>& map) {
 
 void	Client::ResponseToClient(std::map<int, Client*>& map, int& fdQueue, struct config* config) {
 	std::string	str;
-	int			err;
 
 	if (this->_response.IsParsed() == false)
 		this->_response = HeaderResponse(this->_request, config);
 	str = _response.GetBuffer();
 	bytesSent = send(fd, str.c_str(), str.length(), 0);
 	if (bytesSent == -1) {
-		err = errno;
-		if (err == EAGAIN || err == EWOULDBLOCK)
-			return ;
-		else
-			CloseConnection(map, true); //on close la connexion si erreur send
+		CloseConnection(map, true); //on close la connexion si erreur send
+		return ;
 	}
 	if (bytesSent != static_cast<ssize_t>(str.size())) {
 		ResizeBuffer(str);
@@ -165,11 +171,10 @@ void Client::ChangeKeventState(int& fdQueue, bool disableRead) {
 		ptr.events = EPOLLIN;
 		epoll_ctl(fdQueue, EPOLL_CTL_MOD, this->fd, &ptr);
 	}
-	
+	kevent(fdQueue, ptr, 2, NULL, 0, NULL);
 }
 
 void Client::InternalError(int& fdQueue) {
-	logs("here");
 	this->_request = HeaderRequest(INTERNAL);
 	ChangeKeventState(fdQueue, true);
 }

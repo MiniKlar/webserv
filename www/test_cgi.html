@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test CGI</title>
+  <style>
+    :root {
+      --bg-top: #f0fdf4;
+      --bg-bottom: #dcfce7;
+      --card: #ffffff;
+      --text: #1c1917;
+      --border: #86efac;
+      --accent-get: #3b82f6;
+      --accent-post: #ea580c;
+    }
+
+    body {
+      font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+      background: linear-gradient(180deg, var(--bg-top) 0%, var(--bg-bottom) 100%);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
+      min-height: 100vh;
+      margin: 0;
+    }
+
+    .panel {
+      width: min(600px, 100%);
+      background: var(--card);
+      border: 2px solid var(--border);
+      border-radius: 14px;
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: 0 10px 25px rgba(21, 128, 61, 0.1);
+    }
+
+    h1 { text-align: center; margin-top: 0; }
+    h2 { border-bottom: 2px solid #eee; padding-bottom: 10px; margin-top: 0; }
+
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    label { font-weight: bold; }
+    input[type="text"], textarea {
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-family: inherit;
+    }
+
+    button {
+      padding: 10px 16px;
+      border: none;
+      border-radius: 8px;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      width: fit-content;
+    }
+
+    .btn-get { background: var(--accent-get); }
+    .btn-get:hover { background: #2563eb; }
+
+    .btn-post { background: var(--accent-post); }
+    .btn-post:hover { background: #c2410c; }
+
+  </style>
+</head>
+<body>
+
+  <h1>Tests de l'interface CGI</h1>
+
+  <!-- Test pour la requête GET (test.bash) -->
+  <div class="panel">
+    <h2>1. Tester le GET</h2>
+    <p>Cette requête passera ses données via l'URL (Query String).</p>
+    <form action="/cgi-bin/test.bash" method="GET">
+      <label for="get_name">Nom :</label>
+      <input type="text" id="get_name" name="nom" value="Miniklar" required>
+
+      <label for="get_msg">Message :</label>
+      <input type="text" id="get_msg" name="message" value="Hello depuis GET!" required>
+
+      <button type="submit" class="btn-get">Exécuter test.bash (GET)</button>
+    </form>
+  </div>
+
+  <!-- Test pour la requête POST (post_test.bash) -->
+  <div class="panel">
+    <h2>2. Tester le POST</h2>
+    <p>Cette requête passera ses données de manière invisible, via le corps (Body) de la requête HTTP.</p>
+    <form action="/cgi-bin/post_test.bash" method="POST">
+      <label for="post_name">Nom :</label>
+      <input type="text" id="post_name" name="nom" value="Miniklar" required>
+
+      <label for="post_msg">Message :</label>
+      <textarea id="post_msg" name="message" rows="3" required>Voici un long message
+envoyé dans le body
+pour tester le POST.</textarea>
+
+      <button type="submit" class="btn-post">Exécuter post_test.bash (POST)</button>
+    </form>
+  </div>
+
+</body>
+</html>

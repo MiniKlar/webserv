@@ -3,9 +3,9 @@
 
 #include <sys/socket.h>
 #include <sys/epoll.h>
-#include "HeaderRequest.hpp"
-#include "HeaderResponse.hpp"
 #include "utils.hpp"
+#include "headerRequest.hpp"
+#include "headerResponse.hpp"
 
 struct config;
 
@@ -13,17 +13,17 @@ class Client
 {
 	private:
 			int 				fd;
-			struct config*		config;
+			int					timestamp;
+			bool				headerFound;
 			long				pos;
-			struct sockaddr 	sockaddrClient;
+			ssize_t				bytesSent;
 			socklen_t 			socklenClient;
 			std::string			headerBuffer;
 			std::string			headerBody;
 			HeaderRequest		_request;
 			HeaderResponse		_response;
-			ssize_t				bytesSent;
-			bool				headerFound;
-			int					timestamp;
+			struct config*		config;
+			struct sockaddr 	sockaddrClient;
 
 	public:
 		//constructor
@@ -33,20 +33,20 @@ class Client
 		~Client(void);
 
 		//getters
-		struct sockaddr* 		getsockaddrClient(void);
-		socklen_t*				getSockLenClient(void);
 		int						GetTime(void);
+		socklen_t*				getSockLenClient(void);
+		struct sockaddr* 		getsockaddrClient(void);
 
 		//setters
 		void					SetSockaddrClient(struct sockaddr);
 		void					SetSockLenClient(socklen_t);
 
 		//member functions
+		bool					CheckErrors(std::string&);
 		void					ReceiveHeader(int&, std::map<int, Client*>& map);
 		void					ResponseToClient(std::map<int, Client*>&, int&, struct config*);
 		void					ChangeKeventState(int&, bool);
 		void					InternalError(int&);
-		//bool					CheckErrors(std::string&);
 		void					CloseConnection(std::map<int, Client*>&, bool);
 		void					ResizeBuffer(std::string&);
 		void					CleanClient(void);

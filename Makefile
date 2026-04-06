@@ -3,24 +3,25 @@
 #                                                         :::      ::::::::    #
 #    Makefile                                           :+:      :+:    :+:    #
 #                                                     +:+ +:+         +:+      #
-#    By: lomont <lomont@student.42.fr>              +#+  +:+       +#+         #
+#    By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2026/02/15 23:56:24 by lomont            #+#    #+#              #
-#    Updated: 2026/04/02 16:27:35 by lomont           ###   ########.fr        #
+#    Updated: 2026/04/06 20:01:21 by lomont           ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
 NAME = webserv
 
-CXX ?= c++
-BASE_CFLAGS = -Wall -Wextra -Werror -std=c++98 -pedantic
+CXX ?= g++-15
+BASE_CFLAGS = -Wall -Wextra -Werror -g -std=c++98 -pedantic
+INCLUDES = -I./srcs/includes
 SANITIZE ?= 0
 
 ifeq ($(SANITIZE),1)
 SANITIZE_FLAGS = -fsanitize=address
 endif
 
-CFLAGS = $(BASE_CFLAGS) $(SANITIZE_FLAGS)
+CFLAGS = $(BASE_CFLAGS) $(SANITIZE_FLAGS) $(INCLUDES)
 
 RM = rm -f
 OBJ_DIR = obj
@@ -28,9 +29,10 @@ OBJ_DIR = obj
 SRC = ./srcs/main.cpp \
 	./srcs/webserv.cpp \
 	./srcs/client.cpp \
-	./srcs/HeaderRequest.cpp \
-	./srcs/HeaderResponse.cpp \
+	./srcs/headerRequest.cpp \
+	./srcs/headerResponse.cpp \
 	./srcs/utils.cpp \
+	./srcs/parsing.cpp \
 
 OBJ = $(SRC:./srcs/%.cpp=$(OBJ_DIR)/%.o)
 

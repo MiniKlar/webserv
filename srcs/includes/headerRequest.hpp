@@ -1,28 +1,22 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   HeaderRequest.hpp                                  :+:      :+:    :+:   */
+/*   headerRequest.hpp                                  :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 04:00:02 by lomont            #+#    #+#             */
-/*   Updated: 2026/03/29 18:42:19 by lomont           ###   ########.fr       */
+/*   Updated: 2026/04/06 15:55:56 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #ifndef HEADERREQUEST_HPP
 #define HEADERREQUEST_HPP
 
-#define UPLOAD_FOLDER "/www/uploads/"
+#define UPLOAD_FOLDER "/www/uploads/" //TODO create default uploads folder?
 
-#include <iostream>
-#include <sstream>
 #include <map>
-#include <algorithm>
 #include <string>
-#include <fcntl.h>
-#include <unistd.h>
-#include "utils.hpp"
 
 enum Error {
 	OK = 0,
@@ -50,13 +44,12 @@ struct config;
 class HeaderRequest
 {
 	private:
-		Method												method;
-		std::map<std::string, std::string>					headerPair;
-		std::string											body;
 		bool												_delete;
-		Error												error;
-		bool												isCGI;
 		bool												authorized;
+		Error												error;
+		Method												method;
+		std::string											body;
+		std::map<std::string, std::string>					headerPair;
 	public:
 		//constructors
 		HeaderRequest();
@@ -76,13 +69,12 @@ class HeaderRequest
 		void			CleanHeader(void);
 
 		//getters
-		std::map<std::string, std::string>& getPairs(void);
-		Method								GetMethod(void);
-		Error								GetError(void);
 		bool								GetDeleteSocket(void);
-		std::string							GetBody(void);
-		bool								GetIsCGI(void);
 		bool								GetAuthorized(void);
+		Error								GetError(void);
+		Method								GetMethod(void);
+		std::string							GetBody(void);
+		std::map<std::string, std::string>& getPairs(void);
 
 		//setters
 		void								SetMethod(std::string&);

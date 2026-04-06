@@ -1,23 +1,32 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   main.cpp                                           :+:      :+:    :+:   */
+/*   webserv.hpp                                        :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2026/02/15 23:06:49 by lomont            #+#    #+#             */
-/*   Updated: 2026/04/05 13:26:26 by lomont           ###   ########.fr       */
+/*   Created: 2026/02/15 23:09:55 by lomont            #+#    #+#             */
+/*   Updated: 2026/04/05 14:48:04 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "webserv.hpp"
+#ifndef WEBSERV_HPP
+#define WEBSERV_HPP
 
-int main(int argc, char** argv) {
-	if (argc > 3)
-		ft_error("To start correctly a web server, please type \"./webserv your_configuration_file\"");
-	else if (argc == 2)
-		server webserv(argv[argc - 1]);
-	else
-		server webserv(DEFAULT_CONFIGURATION_FILE);
-	return (0);
-}
+#define DEFAULT_CONFIGURATION_FILE "webserv.conf"
+
+#include <fcntl.h>
+#include <unistd.h>
+#include "utils.hpp"
+#include "server.hpp"
+#include "serverConfig.hpp"
+
+class Client;
+
+void				handler(int);
+
+extern int errno;
+extern volatile sig_atomic_t g_stop;
+
+#endif
+
