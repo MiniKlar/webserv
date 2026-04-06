@@ -1,12 +1,12 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   ServerConfig.hpp                                   :+:      :+:    :+:   */
+/*   serverConfig.hpp                                   :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/04 23:45:26 by lomont            #+#    #+#             */
-/*   Updated: 2026/04/05 21:35:43 by lomont           ###   ########.fr       */
+/*   Updated: 2026/04/06 22:28:26 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -22,7 +22,7 @@ struct LocationConfig {
 	std::string									location;
 	std::string									root;
 	std::string									upload_store;
-	std::string									pathPHPexecutable;
+	std::map<std::string, std::string>			cgi_handlers;
 	std::vector<std::string>					methods;
 	std::vector<std::string>					index;
 	std::pair<std::string, std::string> 		_return;

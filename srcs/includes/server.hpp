@@ -1,12 +1,12 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   Server.hpp                                         :+:      :+:    :+:   */
+/*   server.hpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/05 12:51:45 by lomont            #+#    #+#             */
-/*   Updated: 2026/04/05 14:49:02 by lomont           ###   ########.fr       */
+/*   Updated: 2026/04/06 20:35:42 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -20,7 +20,8 @@
 #include <map>
 #include <iostream>
 #include <sys/types.h>
-#include <sys/event.h>
+#include <sys/epoll.h>
+#include <cerrno>
 #include <sys/time.h>
 #include <netdb.h>
 #include "serverConfig.hpp"
@@ -35,8 +36,8 @@ class server
 		void					fillSockaddrStruct(int);
 		size_t					serverConfigCount;
 		protoent* 				f;
-		struct kevent 			event; //event to monitor
-		struct kevent 			tevent[SIZE_TEVENT]; //triggered event
+		struct epoll_event 		event; //event to monitor
+		struct epoll_event 		tevent[SIZE_TEVENT]; //triggered event
 		struct config*			config;
 		struct sockaddr_in*		sa;
 		std::map<int, Client*> 	map;
@@ -66,7 +67,7 @@ class server
 		~server(void);
 
 		//Getters
-		int				findServerSocket(uintptr_t &);
+		int				findServerSocket(epoll_data_t);
 
 		//Setters
 
