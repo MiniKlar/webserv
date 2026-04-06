@@ -1,12 +1,12 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   Parsing.cpp                                        :+:      :+:    :+:   */
+/*   parsing.cpp                                        :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/04 23:49:51 by lomont            #+#    #+#             */
-/*   Updated: 2026/04/05 22:01:26 by lomont           ###   ########.fr       */
+/*   Updated: 2026/04/06 16:15:32 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -51,15 +51,19 @@ int server::FindLocation(const std::string &buffer, size_t &positionLastBracket,
 	struct LocationConfig *ptr;
 
 	i = 0;
-	if ((pos = buffer.find("location", pos)) == std::string::npos) //TODO rajouter une root générale hard code?
+	if ((pos = buffer.find("location", pos)) == std::string::npos)
 		return (-1);
 	config[index].numbersOfLocation = FindNumbersOfLocation(buffer, positionLastBracket, pos);
-	config[index].locationConfig = new LocationConfig[config[index].numbersOfLocation];
-	if (!config[index].locationConfig) {
-		ft_error("Allocation failed");
-		return (-1);
+	if (config[index].numbersOfLocation > 0) {
+		config[index].locationConfig = new LocationConfig[config[index].numbersOfLocation];
+		if (!config[index].locationConfig) {
+			ft_error("Allocation failed");
+			return (-1);
+		}
 	}
-	while (pos <= positionLastBracket) {
+	else
+		config[index].locationConfig = NULL;
+	while (pos <= positionLastBracket && config[index].locationConfig != NULL) {
 		ptr = &config[index].locationConfig[i];
 		//Parse complete location
 		positionFirstBracket = buffer.find("{", pos);
@@ -144,7 +148,7 @@ int server::FindErrorPages(const std::string &buffer, size_t &positionLastBracke
 	while (pos < positionLastBracket || !buffer[pos])
 	{
 		pos = buffer.find("error_page", pos);
-		if (pos == std::string::npos) //TODO créer page error simple si l'utilisateur n'en met pas
+		if (pos == std::string::npos)
 			return (0);
 		pos += 11;
 		while (!brake)
@@ -159,12 +163,12 @@ int server::FindErrorPages(const std::string &buffer, size_t &positionLastBracke
 				pos++;
 			}
 			if (!brake) {
-				errorCodes.push_back(atoi(buffer.substr(xpos, pos - xpos).c_str())); //TODO vérifier atoi si grand nombre
+				errorCodes.push_back(atoi(buffer.substr(xpos, pos - xpos).c_str()));
 				pos++;
 			}
 			else {
 				xpos = buffer.find(";", pos);
-				if (xpos == std::string::npos)
+				if (xpos == std::string::npos || xpos > buffer.find("\n", pos))
 					return (-1);
 				if (buffer[pos] == ' ')
 					pos++;
@@ -192,10 +196,12 @@ int server::FindMaxBody(const std::string &buffer, struct config *conf) {
 	sizeMemory = 0;
 	pos = buffer.find("client", 0);
 	xpos = buffer.find(";", pos);
-	if (pos == std::string::npos || xpos == std::string::npos)
+	if (pos == std::string::npos || xpos == std::string::npos || xpos > buffer.find("\n", pos))
 		return (-1);
 	pos += 21;
 	sizeMax = buffer.substr(pos, xpos - pos);
+	if (sizeMax.length() > 2)
+		return (-1);
 	c = sizeMax[sizeMax.length() - 1];
 	conf->maxBodySize = strtol(sizeMax.c_str(), NULL, 10);
 	if (conf->maxBodySize == 0 && errno == EINVAL)
@@ -239,7 +245,7 @@ size_t server::FindMethods(const std::string &buffer, size_t pos, struct Locatio
 		return (tmp);
 	pos += 8;
 	xpos = buffer.find(";", pos);
-	if (xpos == std::string::npos)
+	if (xpos == std::string::npos || xpos > buffer.find("\n", pos))
 		return (tmp);
 	while (pos <= xpos)
 	{
@@ -262,7 +268,7 @@ size_t server::FindRoot(const std::string &buffer, size_t pos, struct LocationCo
 		return (tmp);
 	pos += 5;
 	xpos = buffer.find(";", pos);
-	if (xpos == std::string::npos)
+	if (xpos == std::string::npos || xpos > buffer.find("\n", pos))
 		return (tmp);
 	conf->root = buffer.substr(pos, xpos - pos);
 	return (pos);
@@ -278,7 +284,7 @@ size_t server::FindIndex(const std::string &buffer, size_t pos, struct LocationC
 		return (tmp);
 	pos += 6;
 	xpos = buffer.find(";", pos);
-	if (xpos == std::string::npos)
+	if (xpos == std::string::npos || xpos > buffer.find("\n", pos))
 		return (tmp);
 	while (pos <= xpos)
 	{
@@ -301,7 +307,7 @@ size_t server::FindAutoIndex(const std::string &buffer, size_t pos, struct Locat
 		return tmp;
 	pos = pos + 10;
 	found = buffer.find("on", pos);
-	if (found < border && found != std::string::npos)
+	if (found < buffer.find("\n", pos) && found != std::string::npos)
 		conf->autoindex = true;
 	else
 		conf->autoindex = false;
@@ -317,12 +323,12 @@ size_t server::FindReturn(const std::string &buffer, size_t pos, struct Location
 		return tmp;
 	pos += 7;
 	xpos = buffer.find(" ", pos);
-	if (xpos == std::string::npos)
+	if (xpos == std::string::npos || xpos > buffer.find("\n", pos))
 		return (tmp);
 	conf->_return.first = buffer.substr(pos, xpos - pos);
 	pos = xpos + 1;
 	xpos = buffer.find(";", pos);
-	if (xpos == std::string::npos) {
+	if (xpos == std::string::npos || xpos > buffer.find("\n", pos)) {
 		conf->_return.first = "";
 		return (tmp);
 	}
@@ -339,7 +345,7 @@ size_t server::FindUpload(const std::string &buffer, size_t pos, struct Location
 		return (tmp);
 	pos += 13;
 	xpos = buffer.find(";", pos);
-	if (xpos == std::string::npos)
+	if (xpos == std::string::npos || xpos > buffer.find("\n", pos))
 		return (tmp);
 	conf->upload_store = buffer.substr(pos, xpos - pos);
 	return (pos);
@@ -352,11 +358,11 @@ size_t server::FindCGIPass(const std::string &buffer, size_t pos, struct Locatio
 	tmp = pos;
 	if ((pos = buffer.find("cgi_pass", pos)) > border)
 		return (tmp);
-	if ((pos = buffer.find(".php", pos)) > border)
+	if ((pos = buffer.find(".bash", pos)) > border)
 		return (tmp);
 	pos += 5;
 	xpos = buffer.find(";", pos);
-	if (xpos == std::string::npos)
+	if (xpos == std::string::npos || xpos > buffer.find("\n", pos))
 		return (tmp);
 	conf->pathPHPexecutable = buffer.substr(pos, xpos - pos);
 	return (pos);
