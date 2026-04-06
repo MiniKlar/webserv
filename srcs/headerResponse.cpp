@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/05 22:42:38 by lomont            #+#    #+#             */
-/*   Updated: 2026/04/06 20:02:56 by lomont           ###   ########.fr       */
+/*   Updated: 2026/04/06 23:13:04 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -76,7 +76,6 @@ void HeaderResponse::CreateResponse(void) {
 	if (this->header.empty()) {
 		if (pathfile == "ERROR") {
 			SearchErrorPage();
-			ft_logs(pathfile);
 			if (!pathfile.empty()) {
 				SetFileSize();
 				OpenFile();
@@ -99,7 +98,6 @@ void HeaderResponse::CreateResponse(void) {
 		header.append("\r\n\r\n");
 	}
 	buffer = header + buffer;
-	ft_logs(buffer);
 	parsed = true;
 }
 
@@ -109,8 +107,6 @@ void HeaderResponse::HandleCGI(void) {
 	std::string			header;
 	std::string			buffer;
 	std::string			cgi_headers;
-
-	ft_logs("tu handle un CGI");
 
 	FindPathFile();
 	buffer = PerformCGI();
@@ -162,11 +158,10 @@ void HeaderResponse::HandleGet(void) {
 	FindPathFile(); //trouver le chemin complet du fichier
 	if (this->config->locationConfig) {
 		index = this->config->locationConfig[indexLocationConfig].index;
-		if (this->pathfile.back() == '/') {
+		if (this->pathfile[this->pathfile.length() - 1] == '/') {
 			if (!index.empty()) {
 				for (std::vector<std::string>::iterator it = index.begin(); it != index.end(); it++) {
 					path = std::string(".") + this->pathfile + *it;
-					std::cout << "index = " << path << std::endl;
 					if (access(path.c_str(), F_OK) == 0) {
 						if (stat(path.c_str(), &s) && !(s.st_mode & S_IFDIR)) {
 							pathfile = path;
@@ -178,21 +173,16 @@ void HeaderResponse::HandleGet(void) {
 			}
 			if (!found) {
 				if (this->config->locationConfig[indexLocationConfig].autoindex == true) {
-					ft_logs("tu es sur une route '/' avec autoindex on");
 					HandleAutoIndex();
 					this->bodySize = buffer.size();
 					ss << bodySize;
 					this->bodySizePrint = ss.str();
-					ft_logs(this->bodySizePrint);
 					return ;
 				}
 			}
 		}
 	}
-	ft_logs("tu es avant setfilesize");
 	SetFileSize(); //Trouver et set la taille du fichier qu'on va renvoyer
-	std::cout << this->request.GetError() << std::endl;
-	ft_logs("tu es apres setfilesize");
 	if (!this->error) //S'il n'y a pas eu d'erreur, alors on peut essayer d'ouvrir le fichier
 		OpenFile();
 	return ;
@@ -204,7 +194,6 @@ void HeaderResponse::HandleAutoIndex(void) {
 	std::string buffer;
 
 	pathfile = this->pathfile;
-	ft_logs("pathfile for autoindex = " + pathfile);
 	header = "<html>\n<head><title>Index of " + pathfile + "</title></head>\n<body>\n<h1>Index of " + pathfile + "</h1><hr>\n<table width=\"100%\">\n<tr style=\"text-align: left;\"><th>Name</th><th>Last Modified</th><th>Size</th></tr>\n";
 	buffer = PerformListing(pathfile);
 	if (buffer.empty()) {
@@ -214,7 +203,6 @@ void HeaderResponse::HandleAutoIndex(void) {
 		return ;
 	}
 	this->buffer = header + buffer + "</table>\n<hr>\n</body>\n</html>";
-	ft_logs("buffer = [" + this->buffer + "]");
 }
 
 void HeaderResponse::HandleDelete(void) {
@@ -239,9 +227,8 @@ void HeaderResponse::HandlePost(void) {
 
 void HeaderResponse::DeleteFile(void) {
 	std::string path = "." + pathfile;
-	std::cout << "pathfile à delete = [" << pathfile  << "]" << std::endl;
 	if (remove(path.c_str()) == -1) {
-		ft_logs("Error: can't delete file; file not found");
+		ft_warning("Error: can't delete file; file not found");
 		this->request.SetError(NOT_FOUND);
 		pathfile = "ERROR";
 		this->error = true;
@@ -260,7 +247,6 @@ void HeaderResponse::SearchErrorPage(void) {
 		const std::vector<int>& errorCodesKeys = it->first;
 		if (std::find(errorCodesKeys.begin(), errorCodesKeys.end(), errorCode) != errorCodesKeys.end()) {
 			pathfile = "." + it->second;
-			std::cout << pathfile << std::endl;
 			if (access(pathfile.c_str(), F_OK) == 0) {
 				if (stat(pathfile.c_str(), &s) == -1 || s.st_mode & S_IFDIR) {
 					pathfile.clear();
@@ -296,11 +282,10 @@ void HeaderResponse::FindFileLocation(void) {
 		}
 	}
 	//checkCGI here
-	std::cout << "voici str= " << str << std::endl;
-	if (str.find(".php") != std::string::npos || str.find(".bash") != std::string::npos) {
-		if (!ptr[indexLocationConfig].pathPHPexecutable.empty())
+	for (std::map<std::string, std::string>::iterator it = ptr[indexLocationConfig].cgi_handlers.begin(); it != ptr[indexLocationConfig].cgi_handlers.end(); it++) {
+		if (str.find(it->first) != std::string::npos)
 			isCGI = true;
-	};
+	}
 }
 
 void HeaderResponse::GetHeaderResponse(void) {
@@ -344,6 +329,7 @@ void HeaderResponse::OpenFile(void) {
 	buffer[bread] = '\0';
 	close(file);
 	this->buffer.append(buffer, bread);
+	delete[] buffer;
 	return;
 }
 
@@ -382,7 +368,7 @@ void HeaderResponse::ParseBody() {
 	if (this->config->locationConfig) {
 		upload_path = this->config->locationConfig[indexLocationConfig].upload_store;
 		if (upload_path.empty()) {
-			ft_logs("upload path empty");
+			ft_warning("Upload path empty");
 			this->request.SetError(FORBIDDEN);
 			this->error = true;
 			return ;
@@ -411,19 +397,15 @@ void HeaderResponse::CreateImage(const std::string& bufferBody, std::string& bou
 		startpos = bufferBody.find("name=") + 6;
 		endpos = bufferBody.find(";", startpos);
 		name = bufferBody.substr(startpos, endpos - startpos - 1);
-		ft_logs(name);
 		startpos = bufferBody.find("filename=") + 10;
 		endpos = bufferBody.find("\r\n", startpos);
 		filename = bufferBody.substr(startpos, endpos - startpos - 1);
-		ft_logs(filename);
 		startpos = bufferBody.find("Content-Type:") + 14;
 		endpos = bufferBody.find("\r\n", startpos);
 		image_png = bufferBody.substr(startpos, endpos - startpos);
-		ft_logs(image_png);
 
 		startpos = endpos + 4;
 		std::string delimiter = "\r\n" + boundary + "--";
-		ft_logs(delimiter);
 		endpos = bufferBody.find(delimiter, startpos);
 		std::string image = bufferBody.substr(startpos, endpos - startpos);
 
@@ -452,7 +434,7 @@ void HeaderResponse::CheckMethod(void) {
 	headerMethod = this->request.getPairs()["Method:"];
 	//check si la méthode fait parti des méthodes prises en charge par webserv
 	if (headerMethod != "GET" && headerMethod != "POST" && headerMethod != "DELETE") {
-		ft_logs("Method not implemented");
+		ft_warning("Method not implemented");
 		this->request.SetError(NOT_IMPLEMENTED);
 		error = true;
 		return ;
@@ -466,11 +448,11 @@ void HeaderResponse::CheckMethod(void) {
 		}
 		if (!methodAccepted) {
 			if (!this->config->locationConfig[indexLocationConfig].location.empty()) {
-				ft_logs("Location moved permanently");
+				ft_warning("Location moved permanently");
 				this->request.SetError(MOVED_PERMANENTLY);
 			}
 			else {
-				ft_logs("Method not allowed by the route");
+				ft_warning("Method not allowed by the route");
 				this->request.SetError(NOT_ALLOWED);
 			}
 			error = true;
@@ -504,7 +486,6 @@ void HeaderResponse::FindPathFile(void) {
 		root = this->config->locationConfig[indexLocationConfig].root;
 	}
 	this->pathfile = root + str;
-	ft_logs("pathfile = [" + pathfile + "]");
 	return ;
 }
 
@@ -687,7 +668,7 @@ void HeaderResponse::SetFileSize(void) {
 	if (pathfile[0] != '.')
 		pathfile = "." + pathfile;
 	if (stat(pathfile.c_str(), &s) == -1) {
-			ft_logs("error stat");
+			ft_warning("Error stat");
 			pathfile = "ERROR";
 			error = true;
 			this->request.SetError(NOT_FOUND);
@@ -718,14 +699,13 @@ std::string HeaderResponse::PerformListing(std::string& path) {
 	pathfile = "." + path;
 	directory = opendir(pathfile.c_str());
 	if (directory == NULL) {
-		ft_logs("directory null");
+		ft_warning("Directory null");
 		this->error = true;
 		this->request.SetError(NOT_FOUND);
 		return ("");
 	}
 	while ((s_dir = readdir(directory)) != NULL) {
 		pathfile = "." + path + s_dir->d_name;
-		ft_logs(s_dir->d_name);
 		if (stat(pathfile.c_str(), &s_stat) != -1) {
 			if (s_stat.st_mode & S_IFDIR) {
 				pathfile = s_dir->d_name + std::string("/");
@@ -754,10 +734,9 @@ std::string HeaderResponse::get_exec(std::string path)
 	if (*path.begin() != '.')
 		path = "." + path;
 	std::ifstream file (path.c_str());
-	std::cout << "path avant ouverture = " << path.c_str() << std::endl;
 	if (!file.is_open())
 	{
-		ft_logs("can't open script");
+		ft_warning("Can't open script");
 		return ("");
 	}
 
@@ -847,7 +826,6 @@ std::string HeaderResponse::PerformCGI()
 	if (pipe(pipe_out) == -1)
 		return ("");
 	this->pathfile = "." + this->pathfile;
-	std::cout << "voici le path avant le fork = " << this->pathfile << std::endl;
 	if (post) {
 		if (pipe(pipe_in) == -1)
 			return ("");
@@ -879,10 +857,13 @@ std::string HeaderResponse::PerformCGI()
 		fcntl(pipe_out[0], F_SETFL | O_NONBLOCK);
 		buffer = read_cgi_output_with_timeout(pipe_out[0], pid, 20);
     }
+	for (int i = 0; envp[i]; i++)
+		free (envp[i]);
+	for (int i = 0; args[i]; i++)
+		free (args[i]);
 	delete[] envp;
 	delete[] args;
 	close(pipe_out[0]);
-	ft_logs(buffer);
 	return (buffer);
 }
 
@@ -922,7 +903,7 @@ std::string HeaderResponse::read_cgi_output_with_timeout(int fd, pid_t pid, int 
         {
             kill(pid, SIGKILL);
             waitpid(pid, NULL, 0);
-            ft_logs("CGI script killed due to timeout");
+            ft_warning("CGI script killed due to timeout");
             return ("");
         }
         usleep(10000);

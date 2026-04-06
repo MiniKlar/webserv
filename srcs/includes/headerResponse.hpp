@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 04:02:32 by lomont            #+#    #+#             */
-/*   Updated: 2026/04/06 20:13:35 by lomont           ###   ########.fr       */
+/*   Updated: 2026/04/06 20:34:49 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -27,6 +27,9 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include <signal.h>
+#include <algorithm>
+#include <cstdlib>
+#include <sys/wait.h>
 #include "headerRequest.hpp"
 
 struct	config;
