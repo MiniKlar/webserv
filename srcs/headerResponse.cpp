@@ -1,12 +1,12 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   HeaderResponse.cpp                                 :+:      :+:    :+:   */
+/*   headerResponse.cpp                                 :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/05 22:42:38 by lomont            #+#    #+#             */
-/*   Updated: 2026/04/06 01:01:28 by lomont           ###   ########.fr       */
+/*   Updated: 2026/04/06 17:34:33 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,13 +15,13 @@
 
 //Constructors
 
-HeaderResponse::HeaderResponse(HeaderRequest& setRequest, struct config* setConfig) : cookie(false), error(false), parsed(false), bodySize(0), indexLocationConfig(0), header(""), buffer(""), bodySizePrint("0"), pathfile(""), config(setConfig), request(setRequest){
+HeaderResponse::HeaderResponse(HeaderRequest& setRequest, struct config* setConfig) : cookie(false), error(false), parsed(false), isCGI(false), bodySize(0), indexLocationConfig(0), header(""), buffer(""), bodySizePrint("0"), pathfile(""), config(setConfig), request(setRequest){
 	//Create the HeaderResponse depending the method and/or the file is a CGI
 	CreateResponse();
 	return ;
 }
 
-HeaderResponse::HeaderResponse(void) : cookie(false), error(false), parsed(false), bodySize(0), indexLocationConfig(0), header(""), buffer(""), bodySizePrint(""), pathfile(""), config(NULL), request(HeaderRequest()) {
+HeaderResponse::HeaderResponse(void) : cookie(false), error(false), parsed(false), isCGI(false), bodySize(0), indexLocationConfig(0), header(""), buffer(""), bodySizePrint(""), pathfile(""), config(NULL), request(HeaderRequest()) {
 	return ;
 }
 
@@ -42,6 +42,7 @@ HeaderResponse& HeaderResponse::operator=(const HeaderResponse& other) {
 		this->indexLocationConfig = other.indexLocationConfig;
 		this->bodySize = other.bodySize;
 		this->error = other.error;
+		this->isCGI = other.isCGI;
 		this->parsed = other.parsed;
 		this->cookie = other.cookie;
 	}
@@ -62,16 +63,15 @@ void HeaderResponse::CreateResponse(void) {
 	//On check que la méthode est bien implémenté et accepté par la route demandé
 	CheckMethod();
 	//Selon la route on va choisir les fonctions à utiliser
-	if (this->request.GetIsCGI() == true)
-		//TODO si erreur dans le script alors que faire?
+	if (isCGI)
 		HandleCGI();
-	else if (this->request.GetMethod() == GET)
+	else if (this->request.GetMethod() == GET && !isCGI)
 		HandleGet();
 	else if (this->request.GetMethod() == DELETE)
 		HandleDelete();
-	else if (this->request.GetMethod() == POST)
+	else if (this->request.GetMethod() == POST && !isCGI)
 		HandlePost();
-	if (!this->error)
+	if (!this->error && !isCGI)
 		GetHeaderResponse();
 	if (this->header.empty()) {
 		if (pathfile == "ERROR") {
@@ -82,7 +82,6 @@ void HeaderResponse::CreateResponse(void) {
 				OpenFile();
 			}
 			else {
-				ft_logs("here");
 				this->buffer = default_error_page();
 				this->bodySize = buffer.size();
 				std::ostringstream oss;
@@ -100,27 +99,54 @@ void HeaderResponse::CreateResponse(void) {
 		header.append("\r\n\r\n");
 	}
 	buffer = header + buffer;
+	ft_logs(buffer);
 	parsed = true;
 }
 
 void HeaderResponse::HandleCGI(void) {
+	size_t				pos;
 	std::ostringstream	oss;
+	std::string			header;
 	std::string			buffer;
+	std::string			cgi_headers;
 
-	//TODO gérer les headers dynamiques
-	if (this->config->locationConfig)
-		buffer = PerformCGI(this->config->locationConfig[indexLocationConfig].root);
+	ft_logs("tu handle un CGI");
 
-	size_t pos = buffer.find("\r\n\r\n") + 4;
-	this->buffer = buffer.substr(pos, buffer.size() - pos);
+	FindPathFile();
+	buffer = PerformCGI();
+	if (buffer.empty()) {
+		this->error = true;
+		this->request.SetError(INTERNAL);
+		pathfile = "ERROR";
+		return ;
+	}
+	pos = buffer.find("\r\n\r\n");
+	if (pos == std::string::npos) {
+		this->error = true;
+		this->request.SetError(INTERNAL);
+		pathfile = "ERROR";
+		return ;
+	}
+	pos += 4;
+
+	cgi_headers = buffer.substr(0, pos);
+	this->buffer = buffer.substr(pos);
+
 	this->bodySize = this->buffer.size();
 	oss << bodySize;
 	this->bodySizePrint = oss.str();
+
+	this->header = "HTTP/1.1 200 OK\r\n";
+    this->header += "Date: " + this->GetCurrentTime() + "\r\n";
+    this->header += "Server: Webserv\r\n";
+    this->header += "Content-Length: " + this->bodySizePrint + "\r\n";
+	this->header += cgi_headers;
 	parsed = true;
 	return ;
 }
 
 void HeaderResponse::HandleGet(void) {
+	struct stat 				s;
 	std::stringstream			ss;
 	std::vector<std::string>	index;
 	std::string					path;
@@ -140,10 +166,13 @@ void HeaderResponse::HandleGet(void) {
 			if (!index.empty()) {
 				for (std::vector<std::string>::iterator it = index.begin(); it != index.end(); it++) {
 					path = std::string(".") + this->pathfile + *it;
+					std::cout << "index = " << path << std::endl;
 					if (access(path.c_str(), F_OK) == 0) {
-						pathfile = path;
-						found = true;
-						break;
+						if (stat(path.c_str(), &s) && !(s.st_mode & S_IFDIR)) {
+							pathfile = path;
+							found = true;
+							break;
+						}
 					}
 				}
 			}
@@ -178,8 +207,12 @@ void HeaderResponse::HandleAutoIndex(void) {
 	ft_logs("pathfile for autoindex = " + pathfile);
 	header = "<html>\n<head><title>Index of " + pathfile + "</title></head>\n<body>\n<h1>Index of " + pathfile + "</h1><hr>\n<table width=\"100%\">\n<tr style=\"text-align: left;\"><th>Name</th><th>Last Modified</th><th>Size</th></tr>\n";
 	buffer = PerformListing(pathfile);
-	if (buffer.empty())
-		ft_crash("error autoindex"); //TODO renvoyer error 500
+	if (buffer.empty()) {
+		this->error = true;
+		this->request.SetError(INTERNAL);
+		this->pathfile = "ERROR";
+		return ;
+	}
 	this->buffer = header + buffer + "</table>\n<hr>\n</body>\n</html>";
 	ft_logs("buffer = [" + this->buffer + "]");
 }
@@ -210,6 +243,7 @@ void HeaderResponse::DeleteFile(void) {
 	if (remove(path.c_str()) == -1) {
 		ft_logs("Error: can't delete file; file not found");
 		this->request.SetError(NOT_FOUND);
+		pathfile = "ERROR";
 		this->error = true;
 		return;
 	}
@@ -249,6 +283,10 @@ void HeaderResponse::FindFileLocation(void) {
 	pos = 0;
 	str = this->request.getPairs()["Request-Target:"];
 	ptr = this->config->locationConfig;
+	if (!ptr) {
+		indexLocationConfig = -1;
+		return ;
+	}
 	for (size_t i = 0; i < this->config->numbersOfLocation; i++) {
 		if (str.compare(0, ptr[i].location.size(), ptr[i].location) == 0) {
 			if (ptr[i].location.size() > pos) {
@@ -257,7 +295,12 @@ void HeaderResponse::FindFileLocation(void) {
 			}
 		}
 	}
-	//TODO faire attention si il n'y a pas de routes => à check
+	//checkCGI here
+	std::cout << "voici str= " << str << std::endl;
+	if (str.find(".php") != std::string::npos || str.find(".bash") != std::string::npos) {
+		if (!ptr[indexLocationConfig].pathPHPexecutable.empty())
+			isCGI = true;
+	};
 }
 
 void HeaderResponse::GetHeaderResponse(void) {
@@ -336,22 +379,28 @@ std::string HeaderResponse::FindFileName(void) {
 void HeaderResponse::ParseBody() {
 	std::string	upload_path;
 
-	upload_path = this->config->locationConfig[indexLocationConfig].upload_store;
-	if (upload_path.empty()) {
-		ft_logs("upload path empty");
-		this->request.SetError(FORBIDDEN);
-		this->error = true;
-		return ;
+	if (this->config->locationConfig) {
+		upload_path = this->config->locationConfig[indexLocationConfig].upload_store;
+		if (upload_path.empty()) {
+			ft_logs("upload path empty");
+			this->request.SetError(FORBIDDEN);
+			this->error = true;
+			return ;
+		}
+		//extraire boundary depuis Content-type
+		std::string contentType = this->request.getPairs()["Content-Type:"];
+		std::string	boundary = contentType.substr(contentType.find("boundary=") + 10, contentType.find("\r\n") - contentType.find("boundary=") + 10);
+		CreateImage(this->request.GetBody(), boundary, upload_path);
 	}
-	//extraire boundary depuis Content-type
-	std::string contentType = this->request.getPairs()["Content-Type:"];
-	std::string	boundary = contentType.substr(contentType.find("boundary=") + 10, contentType.find("\r\n") - contentType.find("boundary=") + 10);
-	CreateImage(this->request.GetBody(), boundary, upload_path);
 }
 
 void HeaderResponse::CreateImage(const std::string& bufferBody, std::string& boundary, std::string& uploadPath) {
-	if (boundary.length() == 0)
-		return ; //TODO revoir gestion error
+	if (boundary.length() == 0) {
+		this->error = true;
+		this->request.SetError(BAD_REQUEST);
+		this->pathfile = "ERROR";
+		return ;
+	}
 	if (bufferBody.length() > 4) {
 		std::string name;
 		std::string filename;
@@ -498,7 +547,7 @@ std::string HeaderResponse::code_200( void ) {
 
 std::string HeaderResponse::code_201(void) {
 	return ("HTTP/1.1 201 Created\r\nDate: "
-	+ this->GetCurrentTime() + "\r\nServer: Webserv\r\nLocation: " + pathfile + "\r\nContent-Type: " + GetContentType() + "\r\nContent-Length: 0" + "\r\n\r\n");
+	+ this->GetCurrentTime() + "\r\nServer: Webserv\r\nLocation: " + pathfile + "\r\nContent-Type: " + GetContentType() + "\r\nContent-Length: 23\r\n\r\nImage perfectly created");
 }
 
 std::string HeaderResponse::code_204(void) {
@@ -561,7 +610,7 @@ std::string HeaderResponse::default_error_page(void) {
 
 std::string HeaderResponse::GetContentType(void) {
 	if (this->request.GetMethod() == POST)
-		return (IMG_TYPE);
+		return (TEXT_TYPE);
 	else
 		return (HTML_TYPE);
 }
@@ -584,11 +633,13 @@ std::string HeaderResponse::GetMethodAllowed(void) {
 	std::vector<std::string>	tmp;
 	std::string					methods;
 
-	tmp = this->config->locationConfig[indexLocationConfig].methods;
-	for (size_t i = 0; i < tmp.size(); i++) {
-		methods += tmp[i];
-		if (i + 1 < tmp.size())
-			methods += " ";
+	if (this->config->locationConfig) {
+		tmp = this->config->locationConfig[indexLocationConfig].methods;
+		for (size_t i = 0; i < tmp.size(); i++) {
+			methods += tmp[i];
+			if (i + 1 < tmp.size())
+				methods += " ";
+		}
 	}
 	return (methods);
 }
@@ -696,94 +747,191 @@ std::string HeaderResponse::PerformListing(std::string& path) {
 
 //CGI
 
-std::string HeaderResponse::PerformCGI(std::string path)
+std::string HeaderResponse::get_exec(std::string path)
 {
-	std::string tmp_env[4] = {"REQUEST_METHOD=", "QUERY_STRING=", "SCRIPT_NAME=", "CONTENT_LENGTH="};
-	std::string	tmp_args[2];
-	pid_t	pid;
-	char 	buf[4096];
-	char**	envp;
-	char **args;
-    int		pipe_out[2];
+	std::string line;
 
-	//Create envp
-	tmp_env[0].append(this->request.getPairs()["Method:"]);
-	tmp_env[1].append("NULL");
-	tmp_env[2].append(this->request.getPairs()["Request-Target:"]);
-	tmp_env[3].append("0");
-	//
-	if (tmp_env[2].find(".bash") != std::string::npos)
-		tmp_args[0] = "/bin/bash";
+	if (*path.begin() != '.')
+		path = "." + path;
+	std::ifstream file (path.c_str());
+	std::cout << "path avant ouverture = " << path.c_str() << std::endl;
+	if (!file.is_open())
+	{
+		ft_logs("can't open script");
+		return ("");
+	}
+
+	std::getline(file, line);
+	if (line[0] != '#' || line[1] != '!')
+		return ("");
 	else
-		tmp_args[0] = "/bin/php"; //à modifier
-	tmp_args[1] = this->request.getPairs()["Request-Target:"];
-	tmp_args[1].erase(tmp_args[1].begin());
-	//
-	envp = new char*[4 + 1];
+	{
+		line.erase(0,2);
+		size_t pos = line.find_first_not_of(" \r\t");
+		if (pos != std::string::npos)
+			line = line.substr(pos);
+	}
+	return (line);
+}
+
+std::string HeaderResponse::get_query_string(std::string uri)
+{
+	size_t pos = uri.find("?");
+	if (pos != std::string::npos)
+		return (uri.substr(pos + 1));
+	return ("");
+}
+
+char** HeaderResponse::create_env(HeaderRequest& request, std::string& path)
+{
+	char**	envp;
+	std::ostringstream	oss;
+	std::string tmp_env[7] = {"REQUEST_METHOD=", "QUERY_STRING=", "SCRIPT_NAME=", "CONTENT_LENGTH=", "CONTENT_TYPE=", "SCRIPT_FILENAME=", "REDIRECT_STATUS=200"};
+
+	tmp_env[0].append(request.getPairs()["Method:"]);
+	tmp_env[1].append(get_query_string(request.getPairs()["Request-Target:"]));
+	if (path.find("?") != std::string::npos)
+		path.resize(path.find("?"));
+	tmp_env[2].append(request.getPairs()["Request-Target:"]);
+	oss << request.GetBody().length();
+	tmp_env[3].append(oss.str());
+	tmp_env[4].append(request.getPairs()["Content-Type:"]);
+	if (path.find_last_of("/") != std::string::npos)
+		tmp_env[5].append(path.substr(path.find_last_of("/"), path.size() - pathfile.find_last_of("/")));
+	else
+		tmp_env[5].append(path);
+
+	envp = new char*[7 + 1];
 	if (!envp)
 		exit(1);
-	for (int i = 0; i < 4; i++)
-		envp[i] = const_cast<char*>(tmp_env[i].c_str());
-	envp[4] = NULL;
-	//
+	for (int i = 0; i < 7; i++)
+		envp[i] = strdup(tmp_env[i].c_str());
+	envp[7] = NULL;
+	return (envp);
+}
+
+char** HeaderResponse::create_args(char* path)
+{
+	char **args;
+	std::string tmp_args[2];
+	std::string script_path(path);
+
+	script_path = "." + script_path.substr(script_path.find("=") + 1, script_path.length() - script_path.find("="));
+	tmp_args[0] = get_exec(this->pathfile);
+	if (tmp_args[0].empty())
+		return (NULL);
+	tmp_args[1] = script_path;
 	args = new char*[2 + 1];
 	for (int i = 0; i < 2; i++)
-		args[i] = const_cast<char*>(tmp_args[i].c_str());
+		args[i] = strdup(tmp_args[i].c_str());
 	args[2] = NULL;
-	//
-	path = "." + path;
-    if (pipe(pipe_out) == -1)
-        return ("");
+	return (args);
+}
+
+std::string HeaderResponse::PerformCGI()
+{
+	int			pipe_in[2];
+	int			pipe_out[2];
+	pid_t		pid;
+	std::string buffer;
+	char**		envp;
+	char**		args;
+	bool		post;
+
+	if (this->request.GetMethod() == POST)
+		post = true;
+	else
+		post = false;
+	envp = create_env(this->request, this->pathfile);
+	args = create_args(envp[5]);
+	if (pipe(pipe_out) == -1)
+		return ("");
+	this->pathfile = "." + this->pathfile;
+	std::cout << "voici le path avant le fork = " << this->pathfile << std::endl;
+	if (post) {
+		if (pipe(pipe_in) == -1)
+			return ("");
+	}
     pid = fork();
     if (pid == 0)
     {
+		if (post) {
+			dup2(pipe_in[0], STDIN_FILENO);
+			close(pipe_in[1]);
+		}
+
         dup2(pipe_out[1], STDOUT_FILENO);
-
         close(pipe_out[0]);
-        close(pipe_out[1]);
-
-        chdir(path.c_str());
+		pathfile.resize(pathfile.find_last_of("/"));
+        chdir(this->pathfile.c_str());
         if (execve(args[0], args, envp) == -1)
 			//free if necessary
             exit(1);
     }
     else
     {
-        close(pipe_out[1]);
-        size_t n;
-        std::string answer;
-        while ((n = read(pipe_out[0], buf, sizeof(buf))) > 0)
-            answer.append(buf, n);
-        waitpid(pid, NULL, 0);
-		delete[] envp;
-		delete[] args;
-		close(pipe_out[0]);
-        return (answer);
+		if (post) {
+			write(pipe_in[1], this->request.GetBody().c_str(), this->request.GetBody().size());
+			close(pipe_in[0]);
+			close(pipe_in[1]);
+		}
+		close(pipe_out[1]);
+		fcntl(pipe_out[0], F_SETFL | O_NONBLOCK);
+		buffer = read_cgi_output_with_timeout(pipe_out[0], pid, 20);
     }
-	return ("");
+	delete[] envp;
+	delete[] args;
+	close(pipe_out[0]);
+	ft_logs(buffer);
+	return (buffer);
 }
-// 1. Gestion de l'entrée standard (STDIN) pour les requêtes POST
-//
-//Actuellement, seul un pipe de sortie (pipe_out) est créé pour capturer ce que le script écrit.
-//Il faut créer un second pipe (pipe d'entrée) et le rediriger vers le STDIN de votre processus enfant (le script) pour pouvoir lui envoyer le corps (body) des requêtes HTTP (indispensable pour les formulaires POST).
-//comme on a déjà le body de la requête http, il faut ouvrir le pipe et lui envoyer this->request->GetBody() avec write().
 
-//2. Compléter et parser les variables d'environnement (RFC 3875)
-//
-//Votre QUERY_STRING est actuellement codée en dur à "NULL". Vous devez extraire la vraie Query String depuis l'URI de la requête.
-//De nombreuses variables obligatoires manquent pour que ça fonctionne bien, notamment : REQUEST_METHOD //QUERY_STRING //CONTENT_LENGTH //CONTENT_TYPE //SCRIPT_FILENAME (ou l'équivalent que PHP attend pour trouver le fichier) //REDIRECT_STATUS=200 (le hack magique pour php-cgi).
+bool HeaderResponse::is_timeout(const timeval& start, int sec_limit)
+{
+    timeval now;
+
+    gettimeofday(&now, NULL);
+    return (now.tv_sec - start.tv_sec > sec_limit);
+}
+
+std::string HeaderResponse::read_cgi_output_with_timeout(int fd, pid_t pid, int timeout_sec)
+{
+    char		buf[4096];
+    ssize_t		n;
+    timeval		start;
+    std::string buffer;
+
+    gettimeofday(&start, NULL);
+    while (1)
+    {
+        n = read(fd, buf, sizeof(buf));
+        if (n > 0)
+            buffer.append(buf, n);
+        else if (n == -1 && errno != EAGAIN)
+            return ("");
+
+        int ret = waitpid(pid, NULL, WNOHANG);
+        if (ret == pid)
+        {
+            while ((n = read(fd, buf, sizeof(buf))) > 0)
+                buffer.append(buf, n);
+            return (buffer);
+        }
+
+        if (is_timeout(start, timeout_sec))
+        {
+            kill(pid, SIGKILL);
+            waitpid(pid, NULL, 0);
+            ft_logs("CGI script killed due to timeout");
+            return ("");
+        }
+        usleep(10000);
+    }
+}
 
 //3. Parsing des headers retournés par le script (dans HandleCGI)
 //
 //Le serveur coupe brutalement au premier \r\n\r\n. Or, un script CGI renvoie ses propres headers (ex: Content-Type, Status, Set-Cookie).
 //Vous devez extraire ces headers pour les intégrer à votre objet de réponse HTTP finale au lieu de les ignorer. Il faut également gérer le cas où le script ne renvoie pas de \r\n\r\n (erreur d'exécution).
 
-//4. Gestion des chemins des interpréteurs
-//
-//Les chemins vers bash et /bin/php sont codés en dur. Les chemins peuvent varier selon les systèmes (ex: /usr/bin/php).
-//Il serait plus robuste d'utiliser la configuration pour récupérer le chemin de l'interpréteur, ou d'exploiter directement le "shebang" (ex: #!/bin/bash) des fichiers executables pour ceux qui l'ont.
 
-//5. Sécurité et blocages (Timeout)
-//
-//Le waitpid actuel est bloquant. Si le script PHP ou Bash entre dans une boucle infinie, votre serveur Web sera complètement bloqué.
-//Il faut implémenter un mécanisme de timeout (par exemple via un waitpid asynchrone ou kill après X secondes) pour interrompre le script s'il met trop de temps.

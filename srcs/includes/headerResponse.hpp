@@ -1,12 +1,12 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   HeaderResponse.hpp                                 :+:      :+:    :+:   */
+/*   headerResponse.hpp                                 :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 04:02:32 by lomont            #+#    #+#             */
-/*   Updated: 2026/04/05 22:23:33 by lomont           ###   ########.fr       */
+/*   Updated: 2026/04/06 16:36:31 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,17 +14,19 @@
 #define HEADERRESPONSE_HPP
 
 #define HTML_TYPE "text/html; charset=UTF-8"
-#define IMG_TYPE "multipart/form-data"
-#define DEFAULT_ERROR_PAGE "/www/default_error.html"
+#define TEXT_TYPE "text/plain"
+#define DEFAULT_ERROR_PAGE "./www/default_error.html"
 #define DEFAULT_UPLOAD_PATH "/www/uploads/"
 #define	FILE_LOCATION "/www"
 
 #include <string>
 #include <sstream>
+#include <fstream>
 #include <ostream>
 #include <unistd.h>
 #include <dirent.h>
 #include <sys/stat.h>
+#include <signal.h>
 #include "headerRequest.hpp"
 
 struct	config;
@@ -36,6 +38,7 @@ class HeaderResponse
 		bool			cookie;
 		bool			error;
 		bool			parsed;
+		bool			isCGI;
 		off_t			bodySize;
 		size_t			indexLocationConfig;
 		std::string		header;
@@ -69,10 +72,16 @@ class HeaderResponse
 		void			CheckMethod(void);
 		void			ParseBody(void);
 		void 			CreateImage(const std::string&, std::string&, std::string&);
+		bool			is_timeout(const timeval&, int);
+		std::string		get_exec(std::string);
+		std::string		get_query_string(std::string);
+		char**			create_env(HeaderRequest&, std::string&);
+		char**			create_args(char*);
 		std::string		FindFileName(void);
-		std::string		PerformCGI(std::string);
+		std::string		PerformCGI();
 		std::string		PerformListing(std::string&);
 		std::string		CheckErrors(void);
+		std::string		read_cgi_output_with_timeout(int, pid_t, int);
 
 		//Setters
 		void			SetFileSize(void);
