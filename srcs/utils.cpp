@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/26 21:15:00 by lomont            #+#    #+#             */
-/*   Updated: 2026/04/05 21:26:30 by lomont           ###   ########.fr       */
+/*   Updated: 2026/04/06 23:11:55 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -28,8 +28,8 @@ void ft_logs(const std::string& str) {
 	return ;
 }
 
-void ft_warning(void) {
-	std::cout << "[WARNING] " << strerror(errno) << std::endl;
+void ft_warning(const std::string& str) {
+	std::cout << "[WARNING]" << str << std::endl << strerror(errno) << std::endl;
 	return ;
 }
 
