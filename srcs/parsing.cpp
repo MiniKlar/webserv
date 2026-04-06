@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/04 23:49:51 by lomont            #+#    #+#             */
-/*   Updated: 2026/04/06 16:15:32 by lomont           ###   ########.fr       */
+/*   Updated: 2026/04/06 23:05:53 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -156,7 +156,7 @@ int server::FindErrorPages(const std::string &buffer, size_t &positionLastBracke
 			xpos = pos;
 			while (!isspace(buffer[pos]))
 			{
-				if (!isnumber(buffer[pos])) {
+				if (!isdigit(buffer[pos])) {
 					brake = true;
 					break;
 				}
@@ -352,19 +352,24 @@ size_t server::FindUpload(const std::string &buffer, size_t pos, struct Location
 }
 
 size_t server::FindCGIPass(const std::string &buffer, size_t pos, struct LocationConfig *conf, size_t &border) {
-	size_t tmp;
-	size_t xpos;
+	size_t 	tmp;
+	size_t 	xpos;
+	size_t	endpos;
+	std::pair<std::string, std::string> pair;
 
 	tmp = pos;
-	if ((pos = buffer.find("cgi_pass", pos)) > border)
-		return (tmp);
-	if ((pos = buffer.find(".bash", pos)) > border)
-		return (tmp);
-	pos += 5;
-	xpos = buffer.find(";", pos);
-	if (xpos == std::string::npos || xpos > buffer.find("\n", pos))
-		return (tmp);
-	conf->pathPHPexecutable = buffer.substr(pos, xpos - pos);
+	while ((pos = buffer.find("cgi_pass", pos)) < border) {
+		endpos = buffer.find(";", pos);
+		if (endpos == std::string::npos || endpos > border)
+			return (tmp);
+		pos += 9;
+		xpos = buffer.find(" ", pos + 1);
+		if (xpos > endpos)
+			return (tmp);
+		pair.first = buffer.substr(pos, xpos - pos);
+		pair.second = buffer.substr(xpos + 1, endpos - (xpos + 1));
+		conf->cgi_handlers.insert(pair);
+	}
 	return (pos);
 }
 
@@ -383,6 +388,5 @@ void server::printConfig(struct LocationConfig *conf) {
 	std::cout << "autoindex: " << conf->autoindex;
 	std::cout << std::endl;
 	std::cout << "return: " << conf->_return.first << " " << conf->_return.second << std::endl;
-	std::cout << "path PHP executable: " << conf->pathPHPexecutable << std::endl;
 	std::cout << "------------------------" << std::endl;
 }
