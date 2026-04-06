@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 04:01:30 by lomont            #+#    #+#             */
-/*   Updated: 2026/04/05 22:42:53 by lomont           ###   ########.fr       */
+/*   Updated: 2026/04/06 15:56:12 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -19,7 +19,7 @@ HeaderRequest::HeaderRequest(void) : error(OK), method(OTHER), body("") {
 	return ;
 }
 
-HeaderRequest::HeaderRequest(std::string bufferHeader) : isCGI(false), authorized(false), error(OK), method(OTHER), body("") {
+HeaderRequest::HeaderRequest(std::string bufferHeader) : authorized(false), error(OK), method(OTHER), body("") {
 	ParseHeaderRequest(bufferHeader);
 	return ;
 }
@@ -42,7 +42,6 @@ HeaderRequest& HeaderRequest::operator=(const HeaderRequest& other) {
 		this->body = other.body;
 		this->_delete = other._delete;
 		this->error = other.error;
-		this->isCGI = other.isCGI;
 		this->authorized = other.authorized;
 	}
 	return (*this);
@@ -124,10 +123,6 @@ void HeaderRequest::ParseFirstLine(std::string& bufferHeader) {
 				break;
 			case 1:
 				key = "Request-Target:";
-				if (value.find(".php") != std::string::npos || value.find(".bash") != std::string::npos) {
-					ft_logs("c'est un CGI");
-					this->isCGI = true;
-				}
 				break;
 			case 2:
 				key = "HTTP:";
@@ -167,10 +162,6 @@ Error HeaderRequest::GetError(void) {
 
 bool HeaderRequest::GetDeleteSocket(void) {
 	return (this->_delete);
-}
-
-bool HeaderRequest::GetIsCGI(void) {
-	return (this->isCGI);
 }
 
 bool HeaderRequest::GetAuthorized(void) {

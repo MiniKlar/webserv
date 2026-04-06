@@ -1,12 +1,12 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   HeaderRequest.hpp                                  :+:      :+:    :+:   */
+/*   headerRequest.hpp                                  :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 04:00:02 by lomont            #+#    #+#             */
-/*   Updated: 2026/04/05 14:25:19 by lomont           ###   ########.fr       */
+/*   Updated: 2026/04/06 15:55:56 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -45,7 +45,6 @@ class HeaderRequest
 {
 	private:
 		bool												_delete;
-		bool												isCGI;
 		bool												authorized;
 		Error												error;
 		Method												method;
@@ -71,7 +70,6 @@ class HeaderRequest
 
 		//getters
 		bool								GetDeleteSocket(void);
-		bool								GetIsCGI(void);
 		bool								GetAuthorized(void);
 		Error								GetError(void);
 		Method								GetMethod(void);
