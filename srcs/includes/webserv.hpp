@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/15 23:09:55 by lomont            #+#    #+#             */
-/*   Updated: 2026/04/05 14:48:04 by lomont           ###   ########.fr       */
+/*   Updated: 2026/04/06 20:30:19 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,8 +15,11 @@
 
 #define DEFAULT_CONFIGURATION_FILE "webserv.conf"
 
+#include <cstring>
+#include <csignal>
 #include <fcntl.h>
 #include <unistd.h>
+#include <sys/epoll.h>
 #include "utils.hpp"
 #include "server.hpp"
 #include "serverConfig.hpp"

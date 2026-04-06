@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/18 23:17:19 by lomont            #+#    #+#             */
-/*   Updated: 2026/04/06 20:10:20 by lomont           ###   ########.fr       */
+/*   Updated: 2026/04/06 23:13:17 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -34,7 +34,8 @@ server::server(const std::string &configurationFile) : f(getprotobyname("TCP")) 
 //Destructor
 server::~server(void) {
 	ft_logs("Server destructor called");
-	delete[] config->locationConfig;
+	for (size_t i = 0; i < serverConfigCount; i++)
+			delete[] config[i].locationConfig;
 	delete[] config;
 	delete[] ServerSocket;
 	delete[] sa;
@@ -87,8 +88,7 @@ void server::CreateNewClient(int newConnexion, struct sockaddr sockaddrClient, s
 	fcntl(newConnexion, F_SETFL, O_NONBLOCK);
 	e_event.events = EPOLLIN;
 	e_event.data.fd = newConnexion;
-	if (epoll_ctl(this->getEvenementQueue(), EPOLL_CTL_ADD, newConnexion, &e_event) == -1) {
-		logs("issue here");
+	if (epoll_ctl(this->EvenementQueue, EPOLL_CTL_ADD, newConnexion, &e_event) == -1) {
 		close(newConnexion);
 		map.erase(newConnexion);
 		delete new_client;
@@ -117,34 +117,31 @@ void server::WaitForConnection(void)
 	socklenClient = sizeof(sockaddrClient);
 	while (!g_stop) // laisser tourner le serveur tout le temps
 	{
-		logs("ici");
-		CheckTimestamp(this->map);
-		if ((nbOfEvents = epoll_wait(this->getEvenementQueue(), s_event, SIZE_TEVENT, 2000)) == -1) // si on recoit -1 de kevent alors crash => on stock dans nbOfEvents
-			logs("Triggered event retrieval error");
+		CheckTimestamp();
+		if ((nbOfEvents = epoll_wait(this->EvenementQueue, s_event, SIZE_TEVENT, 2000)) == -1) // si on recoit -1 de kevent alors crash => on stock dans nbOfEvents
+			ft_warning("Triggered event retrieval error");
 		for (int i = 0; i < nbOfEvents; i++)
 		{ // pour nombres d'events triggered
-			logs("event triggered");
+			ft_logs("An Event or a few Events have been triggered");
 			if ((serverSocket = this->findServerSocket(s_event[i].data)) != -1) { // si event est un serveur socket
 				if ((newConnexion = accept(serverSocket, &sockaddrClient, &socklenClient)) == -1) // si accept fail -> crash
-					ft_logs("Couldn't accept the connection");
+					ft_warning("Couldn't accept the connection");
 				else
 					CreateNewClient(newConnexion, sockaddrClient, socklenClient, serverSocket); // sinon on crée un nouveau client qui aura pour fd le accept
 			}
 			else
 			{
 				current = FindCurrentClient(s_event[i].data.fd); // on cherche le client associé au fd retourné par kevent => ce qui veut dire qu'un client nous a contacté
-				if (!current) {
-					logs("current empty");														  // si on a rien on continue
+				if (!current)													  // si on a rien on continue
 					continue;
-				}
 				current->RefreshTimestamp();
 				if (s_event[i].events == EPOLLIN) {
-					logs("receive header");
-					current->ReceiveHeader(this->getEvenementQueue(), map);
+					ft_logs("A client is sending us a request...");
+					current->ReceiveHeader(this->EvenementQueue, map);
 				}
 				else if (s_event[i].events == EPOLLOUT) {
-					logs("send answer");
-					current->ResponseToClient(map, this->getEvenementQueue(), this->config);
+					ft_logs("A client is listening for an answer...");
+					current->ResponseToClient(map, this->EvenementQueue, this->config);
 				}
 			}
 		}
@@ -152,6 +149,7 @@ void server::WaitForConnection(void)
 	for (std::map<int, Client*>::iterator it = map.begin(); it != map.end(); it++) {
 		it->second->CloseConnection(map, false);
 	}
+	delete[] s_event;
 	ft_logs("Exiting the web server program properly...");
 	return ;
 }
@@ -220,9 +218,10 @@ int server::ConfigureServer(void)
 			ft_error("Fcntl function failed");
 			return (-1);
 		}
-		EV_SET(&this->event, ServerSocket[i], EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, NULL);
-		if (kevent(EvenementQueue, &this->event, 1, NULL, 0, NULL) == -1) {
-			ft_error("kevent event addition failed");
+		this->event.data.fd = ServerSocket[i];
+		this->event.events = EPOLLIN;
+		if (epoll_ctl(EvenementQueue, EPOLL_CTL_ADD, ServerSocket[i], &this->event) == -1) {
+			ft_error("epoll event addition failed");
 			return (-1);
 		}
 	}
@@ -248,9 +247,7 @@ void server::fillSockaddrStruct(int index)
 int server::findServerSocket(epoll_data_t data)
 {
 	for (size_t i = 0; i < serverConfigCount; i++) {
-		std::cout << "data = " << data.fd << std::endl;
 		if (data.fd == ServerSocket[i]) {
-			std::cout << "HEREEEEEEE" << std::endl;
 			return (ServerSocket[i]);
 		}
 	}
