@@ -3,6 +3,7 @@
 
 #include <sys/socket.h>
 #include <sys/epoll.h>
+#include <stdlib.h>
 #include "utils.hpp"
 #include "headerRequest.hpp"
 #include "headerResponse.hpp"
@@ -45,7 +46,7 @@ class Client
 		bool					CheckErrors(std::string&);
 		void					ReceiveHeader(int&, std::map<int, Client*>& map);
 		void					ResponseToClient(std::map<int, Client*>&, int&, struct config*);
-		void					ChangeKeventState(int&, bool);
+		void					ChangeEpollState(int&, bool);
 		void					InternalError(int&);
 		void					CloseConnection(std::map<int, Client*>&, bool);
 		void					ResizeBuffer(std::string&);

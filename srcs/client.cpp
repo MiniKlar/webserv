@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/03/02 00:26:06 by lomont            #+#    #+#             */
-/*   Updated: 2026/04/06 20:02:01 by lomont           ###   ########.fr       */
+/*   Updated: 2026/04/06 23:04:37 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -58,14 +58,13 @@ void Client::ReceiveHeader(int& fdQueue, std::map<int, Client*>& map) {
 			std::map<std::string, std::string>& pairs = this->_request.getPairs();
 			if (pairs.find("Content-Length:") != pairs.end()) {
 				if (pos >= strtol(pairs.find("Content-Length:")->second.c_str(), NULL, 10)) {
-					ft_logs(headerBody);
 					this->_request.SetBody(this->headerBody);
-					ChangeKeventState(fdQueue, true);
+					ChangeEpollState(fdQueue, true);
 					return ;
 				}
 			}
 			else if (this->_request.GetMethod() == GET || this->_request.GetMethod() == DELETE) {
-				ChangeKeventState(fdQueue, true);
+				ChangeEpollState(fdQueue, true);
 				return ;
 			}
 		}
@@ -84,14 +83,14 @@ void Client::ReceiveHeader(int& fdQueue, std::map<int, Client*>& map) {
 				if (contentSize > this->config->maxBodySize) {
 					this->headerBody.clear();
 					this->_request.SetError(BODY_TOO_LARGE);
-					ChangeKeventState(fdQueue, true);
+					ChangeEpollState(fdQueue, true);
 					return ;
 				}
 				this->pos += received;
 				this->headerBody.append(buffer, received);
 				if (static_cast<unsigned long>(this->pos) == contentSize) {
 					this->_request.SetBody(this->headerBody);
-					ChangeKeventState(fdQueue, true);
+					ChangeEpollState(fdQueue, true);
 				}
 			}
 			else if (this->_request.GetMethod() == POST)
@@ -122,7 +121,7 @@ void	Client::ResponseToClient(std::map<int, Client*>& map, int& fdQueue, struct 
 	}
 	else if (this->_request.GetError() != BODY_TOO_LARGE)
 		CleanClient();
-	ChangeKeventState(fdQueue, false);
+	ChangeEpollState(fdQueue, false);
 }
 
 void Client::RefreshTimestamp(void) {
@@ -160,7 +159,7 @@ void Client::CloseConnection(std::map<int, Client*>& map, bool deleteFromMap) {
 	return ;
 }
 
-void Client::ChangeKeventState(int& fdQueue, bool disableRead) {
+void Client::ChangeEpollState(int& fdQueue, bool disableRead) {
 	struct epoll_event ptr;
 	ptr.data.fd = this->fd;
 	if (disableRead) {
@@ -171,12 +170,11 @@ void Client::ChangeKeventState(int& fdQueue, bool disableRead) {
 		ptr.events = EPOLLIN;
 		epoll_ctl(fdQueue, EPOLL_CTL_MOD, this->fd, &ptr);
 	}
-	kevent(fdQueue, ptr, 2, NULL, 0, NULL);
 }
 
 void Client::InternalError(int& fdQueue) {
 	this->_request = HeaderRequest(INTERNAL);
-	ChangeKeventState(fdQueue, true);
+	ChangeEpollState(fdQueue, true);
 }
 
 //Getters
