@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/05 12:51:45 by lomont            #+#    #+#             */
-/*   Updated: 2026/04/06 20:35:42 by lomont           ###   ########.fr       */
+/*   Updated: 2026/04/07 21:49:50 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -19,6 +19,7 @@
 
 #include <map>
 #include <iostream>
+#include <sstream>
 #include <sys/types.h>
 #include <sys/epoll.h>
 #include <cerrno>
