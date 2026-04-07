@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/05 22:42:38 by lomont            #+#    #+#             */
-/*   Updated: 2026/04/06 23:13:04 by lomont           ###   ########.fr       */
+/*   Updated: 2026/04/08 00:58:22 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -81,7 +81,7 @@ void HeaderResponse::CreateResponse(void) {
 				OpenFile();
 			}
 			else {
-				this->buffer = default_error_page();
+				this->buffer = default_error_page(this->request.GetError());
 				this->bodySize = buffer.size();
 				std::ostringstream oss;
 				oss << this->bodySize;
@@ -97,6 +97,7 @@ void HeaderResponse::CreateResponse(void) {
 		header.append("Set-Cookie: session_auth=67; Path=/; Max-Age=3600");
 		header.append("\r\n\r\n");
 	}
+	std::cout << "header size = " << header.size() << std::endl;
 	buffer = header + buffer;
 	parsed = true;
 }
@@ -162,8 +163,12 @@ void HeaderResponse::HandleGet(void) {
 			if (!index.empty()) {
 				for (std::vector<std::string>::iterator it = index.begin(); it != index.end(); it++) {
 					path = std::string(".") + this->pathfile + *it;
+					std::cout << "voici patfile = " << pathfile << " et voici *it = " << *it << std::endl;
+					std::cout << "voici index file = " << path << std::endl;
 					if (access(path.c_str(), F_OK) == 0) {
-						if (stat(path.c_str(), &s) && !(s.st_mode & S_IFDIR)) {
+						std::cout << "access autorisé" << std::endl;
+						if (stat(path.c_str(), &s) != -1 && S_ISREG(s.st_mode)) {
+							std::cout << "c'est un file'" << std::endl;
 							pathfile = path;
 							found = true;
 							break;
@@ -203,6 +208,7 @@ void HeaderResponse::HandleAutoIndex(void) {
 		return ;
 	}
 	this->buffer = header + buffer + "</table>\n<hr>\n</body>\n</html>";
+	std::cout << "size of buffer after listing = " << this->buffer.size() << std::endl;
 }
 
 void HeaderResponse::HandleDelete(void) {
@@ -215,6 +221,7 @@ void HeaderResponse::HandlePost(void) {
 	if (this->request.GetAuthorized() == false) {
 		this->error = true;
 		this->request.SetError(FORBIDDEN);
+		pathfile = "ERROR";
 		return ;
 	}
 	else if (this->request.GetError() != OK) {
@@ -276,8 +283,23 @@ void HeaderResponse::FindFileLocation(void) {
 	for (size_t i = 0; i < this->config->numbersOfLocation; i++) {
 		if (str.compare(0, ptr[i].location.size(), ptr[i].location) == 0) {
 			if (ptr[i].location.size() > pos) {
+				std::cout << "location basique = " << ptr[i].location << std::endl;
 				pos = ptr[i].location.size();
 				indexLocationConfig = i;
+			}
+		}
+		else if (ptr[i].location.size() > 0 && ptr[i].location[ptr[i].location.size() - 1] == '/') {
+			std::string match = ptr[i].location.substr(0, ptr[i].location.size() - 1);
+			std::cout << "voici match = " << match << std::endl;
+			std::cout << "voici str = " << str << std::endl;
+			if (match == str) {
+				std::cout << "ça a bien match" << std::endl;
+				if (ptr[i].location.size() > pos) {
+					std::cout << "la nouvelle location est plus grande" << std::endl;
+					pos = ptr[i].location.size();
+					indexLocationConfig = i;
+					this->request.getPairs()["Request-Target:"] += "/";
+				}
 			}
 		}
 	}
@@ -309,6 +331,10 @@ void HeaderResponse::OpenFile(void) {
 	if (file == -1) {
 		this->request.SetError(INTERNAL);
 		error = true;
+		return ;
+	}
+	if (this->bodySize == 0) {
+		close(file);
 		return ;
 	}
 	buffer = new char[bodySize + 1];
@@ -366,11 +392,16 @@ void HeaderResponse::ParseBody() {
 	std::string	upload_path;
 
 	if (this->config->locationConfig) {
+		if (this->request.getPairs()["Content-Length:"] == "0") {
+			this->buffer = "";
+			return ;
+		}
 		upload_path = this->config->locationConfig[indexLocationConfig].upload_store;
 		if (upload_path.empty()) {
 			ft_warning("Upload path empty");
 			this->request.SetError(FORBIDDEN);
 			this->error = true;
+			pathfile = "ERROR";
 			return ;
 		}
 		//extraire boundary depuis Content-type
@@ -432,6 +463,7 @@ void HeaderResponse::CheckMethod(void) {
 
 	methodAccepted = false;
 	headerMethod = this->request.getPairs()["Method:"];
+	std::cout << headerMethod << std::endl;
 	//check si la méthode fait parti des méthodes prises en charge par webserv
 	if (headerMethod != "GET" && headerMethod != "POST" && headerMethod != "DELETE") {
 		ft_warning("Method not implemented");
@@ -450,10 +482,13 @@ void HeaderResponse::CheckMethod(void) {
 			if (!this->config->locationConfig[indexLocationConfig].location.empty()) {
 				ft_warning("Location moved permanently");
 				this->request.SetError(MOVED_PERMANENTLY);
+				this->error = true;
+				pathfile = "ERROR";
 			}
 			else {
 				ft_warning("Method not allowed by the route");
 				this->request.SetError(NOT_ALLOWED);
+				this->request.SetDeleteRequest(true);
 			}
 			error = true;
 		}
@@ -474,18 +509,17 @@ void HeaderResponse::CleanHeader(void) {
 }
 
 void HeaderResponse::FindPathFile(void) {
-	std::string str;
 	std::string uri;
 	std::string root;
-
 	if (error)
 		return ;
-	str = this->request.getPairs()["Request-Target:"];
+	std::string str = this->request.getPairs()["Request-Target:"];
 	if (this->config->locationConfig) {
 		uri = this->config->locationConfig[indexLocationConfig].location;
 		root = this->config->locationConfig[indexLocationConfig].root;
 	}
 	this->pathfile = root + str;
+	std::cout << "voici le pathfile found = " << this->pathfile << std::endl;
 	return ;
 }
 
@@ -518,80 +552,12 @@ std::string HeaderResponse::CheckErrors(void) {
 	return ("");
 }
 
-//Response code
-
-std::string HeaderResponse::code_200( void ) {
-	return ("HTTP/1.1 200 OK\r\nDate: "
-	+ this->GetCurrentTime() + "\r\nServer: Webserv\r\n" + GetContentType() + "\r\nContent-Length: "
-	+ bodySizePrint + "\r\n" + GetConnectionStatut() + "\r\n\r\n");
-}
-
-std::string HeaderResponse::code_201(void) {
-	return ("HTTP/1.1 201 Created\r\nDate: "
-	+ this->GetCurrentTime() + "\r\nServer: Webserv\r\nLocation: " + pathfile + "\r\nContent-Type: " + GetContentType() + "\r\nContent-Length: 23\r\n\r\nImage perfectly created");
-}
-
-std::string HeaderResponse::code_204(void) {
-	return ("HTTP/1.1 204 No Content\r\nDate: " + this->GetCurrentTime() + "\r\nServer: Webserv\r\n" + GetConnectionStatut() + "\r\n\r\n");
-}
-
-std::string HeaderResponse::code_301(void) {
-	return ("HTTP/1.1 301 Moved Permanently\r\nLocation: " + GetNewLocation() + "\r\nDate: " + this->GetCurrentTime() + "\r\nServer: Webserv\r\nContent-Length: 0\r\n" + GetConnectionStatut() + "\r\n\r\n");
-}
-
-std::string HeaderResponse::code_400(void) {
-	return ("HTTP/1.1 400 Bad Request\r\nDate: "
-	+ this->GetCurrentTime() + "\r\nServer: Webserv\r\n" + GetContentType() + "\r\nContent-Length: "
-	+ bodySizePrint + "\r\n" + GetConnectionStatut() + "\r\n\r\n");
-}
-
-std::string HeaderResponse::code_403(void) {
-	return ("HTTP/1.1 403 Forbidden\r\nDate: "
-	+ this->GetCurrentTime() + "\r\nServer: Webserv\r\n" + GetContentType() + "\r\nContent-Length: "
-	+ bodySizePrint + "\r\n" + GetConnectionStatut() + "\r\n\r\n");
-}
-
-std::string HeaderResponse::code_404(void) {
-	return ("HTTP/1.1 404 Not Found\r\nDate: "
-	+ this->GetCurrentTime() + "\r\nServer: Webserv\r\n"+ GetContentType() +"\r\nContent-Length: "
-	+ bodySizePrint + "\r\n" + GetConnectionStatut() + "\r\n\r\n");
-}
-
-std::string HeaderResponse::code_405(void) {
-	return ("HTTP/1.1 405 Method Not Allowed\r\nDate: " + this->GetCurrentTime() + "\r\nServer: Webserv\r\nContent-Length: 0\r\nAllow: " + GetMethodAllowed() + "\r\n\r\n");
-}
-
-std::string HeaderResponse::code_411(void) {
-	return ("HTTP/1.1 411 Length Required\r\nDate: " + this->GetCurrentTime() + "\r\nServer: Webserv\r\n" + GetContentType() + "\r\nContent-Length: "
-	+ bodySizePrint + "\r\n" + GetConnectionStatut() + "\r\n\r\n");
-}
-
-std::string HeaderResponse::code_413(void) {
-	return ("HTTP/1.1 413 Content Too Large\r\nDate: " + this->GetCurrentTime() + "\r\nServer: Webserv\r\n" + GetContentType() + "\r\nContent-Length: "
-		+ bodySizePrint + "\r\nContent-Max-Size: " + GetMaxBodySize() + "\r\nConnection: Close" + "\r\n\r\n");
-}
-
-std::string HeaderResponse::code_500(void) {
-	return ("HTTP/1.1 500 Internal Server Error\r\nContent-Type:" + GetContentType() + "\r\nContent-Length: " + bodySizePrint + "\r\n\r\n");
-}
-
-std::string HeaderResponse::code_501(void) {
-	return ("HTTP/1.1 501 Not Implemented\r\nDate: " + this->GetCurrentTime() + "\r\nServer: Webserv\r\n\r\n");
-}
-
-std::string HeaderResponse::code_505(void) {
-	return ("HTTP/1.1 505 HTTP Version Not Supported\r\nDate: " + this->GetCurrentTime() + "\r\nServer: Webserv\r\n\r\n");
-}
-
-std::string HeaderResponse::default_error_page(void) {
-	return ("<!DOCTYPE html>\n<html lang=\"fr\">\n<body>\n<main class=\"panel\">\n<h1>An error occurred.</h1>\n<p>Sorry, the page you are looking for is currently unavailable.<br>\nPlease try again later.</p>\n<p>If you are the system administrator of this resource then you should check\nthe error log for details.</p>\n<p><em>Faithfully yours, lomont.</em></p>\n</main>\n</body>\n</html>");
-}
-
 //Getters
 
 std::string HeaderResponse::GetContentType(void) {
-	if (this->request.GetMethod() == POST)
-		return (TEXT_TYPE);
+		// return (TEXT_TYPE);
+	if (this->pathfile.find(".png") != std::string::npos)
+		return ("image/png");
 	else
 		return (HTML_TYPE);
 }
@@ -605,7 +571,7 @@ std::string HeaderResponse::GetConnectionStatut(void) {
 	std::map<std::string, std::string>::iterator it;
 	it = map.find("Connection:");
 	if (it != map.end())
-		return ("Connection: " + it->second);
+		return ("Connection: " + it->second + "\r\n");
 	return ("");
 }
 
@@ -667,13 +633,15 @@ void HeaderResponse::SetFileSize(void) {
 
 	if (pathfile[0] != '.')
 		pathfile = "." + pathfile;
+	std::cout << "Pahtfile = " << pathfile << std::endl;
 	if (stat(pathfile.c_str(), &s) == -1) {
-			ft_warning("Error stat");
-			pathfile = "ERROR";
-			error = true;
-			this->request.SetError(NOT_FOUND);
+		ft_warning("Error stat");
+		pathfile = "ERROR";
+		error = true;
+		this->request.SetError(NOT_FOUND);
+		return ;
 	}
-	if (s.st_mode & S_IFDIR) {
+	if (S_ISDIR(s.st_mode)) {
 		pathfile = "ERROR";
 		this->request.SetError(NOT_FOUND);
 		error = true;
@@ -725,194 +693,9 @@ std::string HeaderResponse::PerformListing(std::string& path) {
 	return (buffer);
 }
 
-//CGI
-
-std::string HeaderResponse::get_exec(std::string path)
-{
-	std::string line;
-
-	if (*path.begin() != '.')
-		path = "." + path;
-	std::ifstream file (path.c_str());
-	if (!file.is_open())
-	{
-		ft_warning("Can't open script");
-		return ("");
-	}
-
-	std::getline(file, line);
-	if (line[0] != '#' || line[1] != '!')
-		return ("");
-	else
-	{
-		line.erase(0,2);
-		size_t pos = line.find_first_not_of(" \r\t");
-		if (pos != std::string::npos)
-			line = line.substr(pos);
-	}
-	return (line);
+void HeaderResponse::SetResponseError(Error err) {
+	this->error = true;
+	this->request.SetError(err);
+	this->pathfile = "ERROR";
+	return ;
 }
-
-std::string HeaderResponse::get_query_string(std::string uri)
-{
-	size_t pos = uri.find("?");
-	if (pos != std::string::npos)
-		return (uri.substr(pos + 1));
-	return ("");
-}
-
-char** HeaderResponse::create_env(HeaderRequest& request, std::string& path)
-{
-	char**	envp;
-	std::ostringstream	oss;
-	std::string tmp_env[7] = {"REQUEST_METHOD=", "QUERY_STRING=", "SCRIPT_NAME=", "CONTENT_LENGTH=", "CONTENT_TYPE=", "SCRIPT_FILENAME=", "REDIRECT_STATUS=200"};
-
-	tmp_env[0].append(request.getPairs()["Method:"]);
-	tmp_env[1].append(get_query_string(request.getPairs()["Request-Target:"]));
-	if (path.find("?") != std::string::npos)
-		path.resize(path.find("?"));
-	tmp_env[2].append(request.getPairs()["Request-Target:"]);
-	oss << request.GetBody().length();
-	tmp_env[3].append(oss.str());
-	tmp_env[4].append(request.getPairs()["Content-Type:"]);
-	if (path.find_last_of("/") != std::string::npos)
-		tmp_env[5].append(path.substr(path.find_last_of("/"), path.size() - pathfile.find_last_of("/")));
-	else
-		tmp_env[5].append(path);
-
-	envp = new char*[7 + 1];
-	if (!envp)
-		exit(1);
-	for (int i = 0; i < 7; i++)
-		envp[i] = strdup(tmp_env[i].c_str());
-	envp[7] = NULL;
-	return (envp);
-}
-
-char** HeaderResponse::create_args(char* path)
-{
-	char **args;
-	std::string tmp_args[2];
-	std::string script_path(path);
-
-	script_path = "." + script_path.substr(script_path.find("=") + 1, script_path.length() - script_path.find("="));
-	tmp_args[0] = get_exec(this->pathfile);
-	if (tmp_args[0].empty())
-		return (NULL);
-	tmp_args[1] = script_path;
-	args = new char*[2 + 1];
-	for (int i = 0; i < 2; i++)
-		args[i] = strdup(tmp_args[i].c_str());
-	args[2] = NULL;
-	return (args);
-}
-
-std::string HeaderResponse::PerformCGI()
-{
-	int			pipe_in[2];
-	int			pipe_out[2];
-	pid_t		pid;
-	std::string buffer;
-	char**		envp;
-	char**		args;
-	bool		post;
-
-	if (this->request.GetMethod() == POST)
-		post = true;
-	else
-		post = false;
-	envp = create_env(this->request, this->pathfile);
-	args = create_args(envp[5]);
-	if (pipe(pipe_out) == -1)
-		return ("");
-	this->pathfile = "." + this->pathfile;
-	if (post) {
-		if (pipe(pipe_in) == -1)
-			return ("");
-	}
-    pid = fork();
-    if (pid == 0)
-    {
-		if (post) {
-			dup2(pipe_in[0], STDIN_FILENO);
-			close(pipe_in[1]);
-		}
-
-        dup2(pipe_out[1], STDOUT_FILENO);
-        close(pipe_out[0]);
-		pathfile.resize(pathfile.find_last_of("/"));
-        chdir(this->pathfile.c_str());
-        if (execve(args[0], args, envp) == -1)
-			//free if necessary
-            exit(1);
-    }
-    else
-    {
-		if (post) {
-			write(pipe_in[1], this->request.GetBody().c_str(), this->request.GetBody().size());
-			close(pipe_in[0]);
-			close(pipe_in[1]);
-		}
-		close(pipe_out[1]);
-		fcntl(pipe_out[0], F_SETFL | O_NONBLOCK);
-		buffer = read_cgi_output_with_timeout(pipe_out[0], pid, 20);
-    }
-	for (int i = 0; envp[i]; i++)
-		free (envp[i]);
-	for (int i = 0; args[i]; i++)
-		free (args[i]);
-	delete[] envp;
-	delete[] args;
-	close(pipe_out[0]);
-	return (buffer);
-}
-
-bool HeaderResponse::is_timeout(const timeval& start, int sec_limit)
-{
-    timeval now;
-
-    gettimeofday(&now, NULL);
-    return (now.tv_sec - start.tv_sec > sec_limit);
-}
-
-std::string HeaderResponse::read_cgi_output_with_timeout(int fd, pid_t pid, int timeout_sec)
-{
-    char		buf[4096];
-    ssize_t		n;
-    timeval		start;
-    std::string buffer;
-
-    gettimeofday(&start, NULL);
-    while (1)
-    {
-        n = read(fd, buf, sizeof(buf));
-        if (n > 0)
-            buffer.append(buf, n);
-        else if (n == -1 && errno != EAGAIN)
-            return ("");
-
-        int ret = waitpid(pid, NULL, WNOHANG);
-        if (ret == pid)
-        {
-            while ((n = read(fd, buf, sizeof(buf))) > 0)
-                buffer.append(buf, n);
-            return (buffer);
-        }
-
-        if (is_timeout(start, timeout_sec))
-        {
-            kill(pid, SIGKILL);
-            waitpid(pid, NULL, 0);
-            ft_warning("CGI script killed due to timeout");
-            return ("");
-        }
-        usleep(10000);
-    }
-}
-
-//3. Parsing des headers retournés par le script (dans HandleCGI)
-//
-//Le serveur coupe brutalement au premier \r\n\r\n. Or, un script CGI renvoie ses propres headers (ex: Content-Type, Status, Set-Cookie).
-//Vous devez extraire ces headers pour les intégrer à votre objet de réponse HTTP finale au lieu de les ignorer. Il faut également gérer le cas où le script ne renvoie pas de \r\n\r\n (erreur d'exécution).
-
-

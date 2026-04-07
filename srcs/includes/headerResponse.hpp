@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 04:02:32 by lomont            #+#    #+#             */
-/*   Updated: 2026/04/06 20:34:49 by lomont           ###   ########.fr       */
+/*   Updated: 2026/04/08 00:36:48 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -30,6 +30,9 @@
 #include <algorithm>
 #include <cstdlib>
 #include <sys/wait.h>
+#include <fcntl.h>
+#include <sys/time.h>
+#include <string.h>
 #include "headerRequest.hpp"
 
 struct	config;
@@ -89,6 +92,7 @@ class HeaderResponse
 		//Setters
 		void			SetFileSize(void);
 		void			SetBuffer(std::string);
+		void			SetResponseError(Error);
 
 		//Getters
 		bool			IsParsed(void);
@@ -115,7 +119,7 @@ class HeaderResponse
 		std::string 	code_500(void);
 		std::string 	code_501(void);
 		std::string 	code_505(void);
-		std::string		default_error_page(void);
+		std::string		default_error_page(Error);
 };
 
 #endif
