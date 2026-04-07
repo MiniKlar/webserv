@@ -6,7 +6,7 @@
 #    By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2026/02/15 23:56:24 by lomont            #+#    #+#              #
-#    Updated: 2026/04/06 20:01:21 by lomont           ###   ########.fr        #
+#    Updated: 2026/04/07 00:53:27 by lomont           ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -33,6 +33,8 @@ SRC = ./srcs/main.cpp \
 	./srcs/headerResponse.cpp \
 	./srcs/utils.cpp \
 	./srcs/parsing.cpp \
+	./srcs/CGI.cpp \
+	./srcs/responseCode.cpp \
 
 OBJ = $(SRC:./srcs/%.cpp=$(OBJ_DIR)/%.o)
 
