@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/03/02 00:26:06 by lomont            #+#    #+#             */
-/*   Updated: 2026/04/06 23:04:37 by lomont           ###   ########.fr       */
+/*   Updated: 2026/04/07 22:44:31 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -30,12 +30,8 @@ Client::~Client(void) {
 
 void Client::ReceiveHeader(int& fdQueue, std::map<int, Client*>& map) {
 	char			buffer[4096];
-	ssize_t			received;
-	size_t			index;
-	size_t			xpos;
-	unsigned long	contentSize;
 
-	received = recv(this->fd, buffer, sizeof(buffer) - 1, 0);
+	ssize_t received = recv(this->fd, buffer, sizeof(buffer) - 1, 0);
 	if (received == -1) {
 		InternalError(fdQueue);
 		return ;
@@ -47,66 +43,163 @@ void Client::ReceiveHeader(int& fdQueue, std::map<int, Client*>& map) {
 	else if (received > 0) {
 		if (!headerFound) {
 			this->headerBuffer.append(buffer, received);
-			xpos = this->headerBuffer.find("\r\n\r\n");
-			if (xpos != std::string::npos) {
-				headerFound = true;
-				headerBody = this->headerBuffer.substr(xpos + 4, xpos + 4 - this->headerBuffer.length());
-				headerBuffer.resize(xpos + 4);
-				this->_request = HeaderRequest(this->headerBuffer);
-			}
-			pos += headerBody.length();
-			std::map<std::string, std::string>& pairs = this->_request.getPairs();
-			if (pairs.find("Content-Length:") != pairs.end()) {
-				if (pos >= strtol(pairs.find("Content-Length:")->second.c_str(), NULL, 10)) {
+			size_t xpos = this->headerBuffer.find("\r\n\r\n");
+			if (xpos == std::string::npos)
+				return ;
+			headerFound = true;
+			this->headerBody = this->headerBuffer.substr(xpos + 4);
+			this->headerBuffer.resize(xpos + 4);
+			this->_request = HeaderRequest(this->headerBuffer);
+			received -= headerBuffer.size();
+			headerBuffer.clear();
+			std::string& transferEncoding = this->_request.getPairs()["Transfer-Encoding:"];
+			std::string& content = this->_request.getPairs()["Content-Length:"];
+			if (transferEncoding == "chunked") {
+				if (this->headerBody.find("0\r\n\r\n") != std::string::npos) {
+					ft_logs("here 2");
+					std::cout << this->_request.getPairs()["Method:"] << std::endl;
+					this->headerBody.clear();
 					this->_request.SetBody(this->headerBody);
 					ChangeEpollState(fdQueue, true);
 					return ;
 				}
 			}
-			else if (this->_request.GetMethod() == GET || this->_request.GetMethod() == DELETE) {
+			else if (content.empty()) {
+				if (this->_request.GetMethod() == POST)
+					this->_request.SetError(LENGTH);
 				ChangeEpollState(fdQueue, true);
 				return ;
 			}
-		}
-		else {
-			std::map<std::string, std::string>& pairs = this->_request.getPairs();
-			if (this->_request.GetError() == BODY_TOO_LARGE)
-				return ;
-			if (this->headerBody.empty()) {
-				index = this->headerBuffer.find("\r\n\r\n");
-				this->headerBody = this->headerBuffer.substr(index + 4, headerBuffer.length() - (index + 4));
-				pos += headerBody.size();
-				this->headerBuffer.erase(index + 4, headerBuffer.length() - (index + 4));
-			}
-			if (pairs.find("Content-Length:") != pairs.end()) {
-				contentSize = strtol(pairs.find("Content-Length:")->second.c_str(), NULL, 10);
-				if (contentSize > this->config->maxBodySize) {
-					this->headerBody.clear();
+			else {
+				long content_length = strtol(content.c_str(), NULL, 10);
+				int	max_body_size = this->config->maxBodySize;
+				std::cout << "content_length = " << content_length << " max_body_size = " << max_body_size << std::endl;
+				if (content_length > max_body_size) {
+					ft_logs("Body too large!");
 					this->_request.SetError(BODY_TOO_LARGE);
 					ChangeEpollState(fdQueue, true);
 					return ;
 				}
-				this->pos += received;
-				this->headerBody.append(buffer, received);
-				if (static_cast<unsigned long>(this->pos) == contentSize) {
+				else {
+					if (received >= content_length) {
+						this->_request.SetBody(this->headerBody);
+						ChangeEpollState(fdQueue, true);
+						return ;
+					}
+				}
+			}
+		}
+		else {
+			this->headerBody.append(buffer, received);
+			std::string& content = this->_request.getPairs()["Content-Length:"];
+			std::string& transferEncoding = this->_request.getPairs()["Transfer-Encoding:"];
+			if (transferEncoding == "chunked") {
+				if (this->headerBody.find("0\r\n\r\n") != std::string::npos) {
+					ft_logs("here 2");
+					std::cout << this->_request.getPairs()["Method:"] << std::endl;
+					this->headerBody.clear();
 					this->_request.SetBody(this->headerBody);
 					ChangeEpollState(fdQueue, true);
 				}
+				return ;
 			}
-			else if (this->_request.GetMethod() == POST)
-				this->_request.SetError(LENGTH);
+			long content_length = strtol(content.c_str(), NULL, 10);
+			if (this->headerBody.size() >= static_cast<unsigned int>(content_length)) {
+				this->_request.SetBody(this->headerBody);
+				ChangeEpollState(fdQueue, true);
+				return ;
+			}
 		}
 	}
-	return ;
 }
 
-void	Client::ResponseToClient(std::map<int, Client*>& map, int& fdQueue, struct config* config) {
-	std::string	str;
+// void Client::ReceiveHeader(int& fdQueue, std::map<int, Client*>& map) {
+// 	char			buffer[4096];
+// 	ssize_t			received;
+// 	size_t			index;
+// 	size_t			xpos;
+// 	unsigned long	contentSize;
 
+// 	received = recv(this->fd, buffer, sizeof(buffer) - 1, 0);
+// 	if (received == -1) {
+// 		InternalError(fdQueue);
+// 		return ;
+// 	}
+// 	else if (received == 0) {
+// 		CloseConnection(map, true);
+// 		return ;
+// 	}
+// 	else if (received > 0) {
+// 		if (!headerFound) {
+// 			this->headerBuffer.append(buffer, received);
+// 			xpos = this->headerBuffer.find("\r\n\r\n");
+// 			if (xpos != std::string::npos) {
+// 				headerFound = true;
+// 				headerBody = this->headerBuffer.substr(xpos + 4, xpos + 4 - this->headerBuffer.length());
+// 				headerBuffer.resize(xpos + 4);
+// 				this->_request = HeaderRequest(this->headerBuffer);
+// 			}
+// 			pos += headerBody.length();
+// 			std::map<std::string, std::string>& pairs = this->_request.getPairs();
+// 			if (pairs.find("Content-Length:") != pairs.end()) {
+// 				std::cout << pairs.find("Content-Length:")->second << std::endl;
+// 				if (strtol(pairs.find("Content-Length:")->second.c_str(), NULL, 10) == 0) {
+// 					ft_logs("ici");
+// 					std::cout << "strtol result= " << strtol(pairs.find("Content-Length:")->second.c_str(), NULL, 10) << std::endl;
+// 					ChangeEpollState(fdQueue, true);
+// 					return ;
+// 				}
+// 				if (pos >= strtol(pairs.find("Content-Length:")->second.c_str(), NULL, 10)) {
+// 					this->_request.SetBody(this->headerBody);
+// 					ChangeEpollState(fdQueue, true);
+// 					return ;
+// 				}
+// 			}
+// 			else {
+// 				ChangeEpollState(fdQueue, true);
+// 				return ;
+// 			}
+// 		}
+// 		else {
+// 			std::map<std::string, std::string>& pairs = this->_request.getPairs();
+// 			if (this->_request.GetError() == BODY_TOO_LARGE)
+// 				return ;
+// 			if (this->headerBody.empty()) {
+// 				index = this->headerBuffer.find("\r\n\r\n");
+// 				this->headerBody = this->headerBuffer.substr(index + 4, headerBuffer.length() - (index + 4));
+// 				pos += headerBody.size();
+// 				this->headerBuffer.erase(index + 4, headerBuffer.length() - (index + 4));
+// 			}
+// 			if (pairs.find("Content-Length:") != pairs.end()) {
+// 				contentSize = strtol(pairs.find("Content-Length:")->second.c_str(), NULL, 10);
+// 				if (contentSize > this->config->maxBodySize) {
+// 					this->headerBody.clear();
+// 					this->_request.SetError(BODY_TOO_LARGE);
+// 					ChangeEpollState(fdQueue, true);
+// 					return ;
+// 				}
+// 				this->pos += received;
+// 				this->headerBody.append(buffer, received);
+// 				if (static_cast<unsigned long>(this->pos) == contentSize) {
+// 					this->_request.SetBody(this->headerBody);
+// 					ChangeEpollState(fdQueue, true);
+// 				}
+// 			}
+// 			else if (this->_request.GetMethod() == POST)
+// 				this->_request.SetError(LENGTH);
+// 		}
+// 	}
+// 	return ;
+// }
+
+void	Client::ResponseToClient(std::map<int, Client*>& map, int& fdQueue, struct config* config) {
+	std::cout << "body size = " << this->_request.GetBody().size() << std::endl;
 	if (this->_response.IsParsed() == false)
 		this->_response = HeaderResponse(this->_request, config);
-	str = _response.GetBuffer();
+	std::string str = _response.GetBuffer();
+	std::cout << str.length() << std::endl;
 	bytesSent = send(fd, str.c_str(), str.length(), 0);
+	std::cout << "bytesSent = "<< bytesSent << std::endl;
 	if (bytesSent == -1) {
 		CloseConnection(map, true); //on close la connexion si erreur send
 		return ;
@@ -115,7 +208,7 @@ void	Client::ResponseToClient(std::map<int, Client*>& map, int& fdQueue, struct 
 		ResizeBuffer(str);
 		return ;
 	}
-	else if (_request.GetDeleteSocket()) {
+	else if (_request.GetDeleteSocket() || this->_request.GetError() == BODY_TOO_LARGE) {
 		CloseConnection(map, true);
 		return ;
 	}
