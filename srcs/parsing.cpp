@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/04 23:49:51 by lomont            #+#    #+#             */
-/*   Updated: 2026/04/06 23:05:53 by lomont           ###   ########.fr       */
+/*   Updated: 2026/04/07 21:51:46 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -187,26 +187,22 @@ int server::FindErrorPages(const std::string &buffer, size_t &positionLastBracke
 }
 
 int server::FindMaxBody(const std::string &buffer, struct config *conf) {
-	int			sizeMemory;
-	char		c;
-	size_t 		pos;
-	size_t 		xpos;
-	std::string sizeMax;
-
-	sizeMemory = 0;
-	pos = buffer.find("client", 0);
-	xpos = buffer.find(";", pos);
+	long sizeMemory = 0;
+	size_t pos = buffer.find("client", 0);
+	size_t xpos = buffer.find(";", pos);
 	if (pos == std::string::npos || xpos == std::string::npos || xpos > buffer.find("\n", pos))
 		return (-1);
 	pos += 21;
-	sizeMax = buffer.substr(pos, xpos - pos);
-	if (sizeMax.length() > 2)
-		return (-1);
-	c = sizeMax[sizeMax.length() - 1];
-	conf->maxBodySize = strtol(sizeMax.c_str(), NULL, 10);
+	std::string sizeMax = buffer.substr(pos, xpos - pos);
+	char c = sizeMax[sizeMax.length() - 1];
+	std::stringstream iss(sizeMax);
+	iss >> conf->maxBodySize;
 	if (conf->maxBodySize == 0 && errno == EINVAL)
 		return (-1);
 	switch (c) {
+		case 'B':
+			sizeMemory = 1;
+			break;
 		case 'K':
 			sizeMemory = 1024;
 			break;
@@ -217,10 +213,16 @@ int server::FindMaxBody(const std::string &buffer, struct config *conf) {
 			sizeMemory = 1024 * 1024 * 1024;
 			break;
 		default:
-			ft_error("Size memory error, please choose a memory size between 'K', 'M, 'G''");
-			return (-1);
+			if (isdigit(c))
+				sizeMemory = 1;
+			else {
+				ft_error("Size memory error, please choose a memory size between 'B', 'K', 'M, 'G''");
+				return (-1);
+			}
+			break;
 	}
 	conf->maxBodySize *= sizeMemory;
+	std::cout << "maxBodySize" << conf->maxBodySize << std::endl;
 	return (0);
 }
 
