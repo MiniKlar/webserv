@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 04:00:02 by lomont            #+#    #+#             */
-/*   Updated: 2026/04/06 15:55:56 by lomont           ###   ########.fr       */
+/*   Updated: 2026/04/07 16:27:49 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -80,6 +80,7 @@ class HeaderRequest
 		void								SetMethod(std::string&);
 		void								SetError(Error err);
 		void								SetBody(std::string str);
+		void								SetDeleteRequest(bool);
 };
 
 #endif
