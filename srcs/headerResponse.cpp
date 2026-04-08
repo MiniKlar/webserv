@@ -241,7 +241,7 @@ void HeaderResponse::DeleteFile(void) {
 		this->error = true;
 		return;
 	}
-	ft_logs("File deleted");
+	// ft_logs("File deleted");
 	return ;
 }
 
@@ -442,12 +442,12 @@ void HeaderResponse::CreateImage(const std::string& bufferBody, std::string& bou
 
 		std::string img_filename = uploadPath + FindFileName();
 		img_filename = "." + img_filename;
-		ft_logs(img_filename);
+		// ft_logs(img_filename);
 		int image_fd = open(img_filename.c_str(), O_CREAT | O_TRUNC | O_RDWR, S_IWUSR | S_IROTH | S_IRUSR | S_IRGRP);
 		if (image_fd == -1) {
 			this->error = true;
 			this->request.SetError(INTERNAL);
-			ft_logs("Error while trying to create the new image");
+			// ft_logs("Error while trying to create the new image");
 			return ;
 		}
 		write(image_fd, image.data(), image.size());

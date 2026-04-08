@@ -33,7 +33,7 @@ server::server(const std::string &configurationFile) : f(getprotobyname("TCP")) 
 
 //Destructor
 server::~server(void) {
-	ft_logs("Server destructor called");
+	// ft_logs("Server destructor called");
 	for (size_t i = 0; i < serverConfigCount; i++)
 			delete[] config[i].locationConfig;
 	delete[] config;
@@ -122,7 +122,7 @@ void server::WaitForConnection(void)
 			ft_warning("Triggered event retrieval error");
 		for (int i = 0; i < nbOfEvents; i++)
 		{ // pour nombres d'events triggered
-			ft_logs("An Event or a few Events have been triggered");
+			// ft_logs("An Event or a few Events have been triggered");
 			if ((serverSocket = this->findServerSocket(s_event[i].data)) != -1) { // si event est un serveur socket
 				if ((newConnexion = accept(serverSocket, &sockaddrClient, &socklenClient)) == -1) // si accept fail -> crash
 					ft_warning("Couldn't accept the connection");
@@ -136,11 +136,11 @@ void server::WaitForConnection(void)
 					continue;
 				current->RefreshTimestamp();
 				if (s_event[i].events == EPOLLIN) {
-					ft_logs("A client is sending us a request...");
+					// ft_logs("A client is sending us a request...");
 					current->ReceiveHeader(this->EvenementQueue, map);
 				}
 				else if (s_event[i].events == EPOLLOUT) {
-					ft_logs("A client is listening for an answer...");
+					// ft_logs("A client is listening for an answer...");
 					current->ResponseToClient(map, this->EvenementQueue, this->config);
 				}
 			}
@@ -150,7 +150,7 @@ void server::WaitForConnection(void)
 		it->second->CloseConnection(map, false);
 	}
 	delete[] s_event;
-	ft_logs("Exiting the web server program properly...");
+	// ft_logs("Exiting the web server program properly...");
 	return ;
 }
 
@@ -163,7 +163,7 @@ void server::CheckTimestamp(void) {
 			toDelete = it;
 			it++;
 			toDelete->second->CloseConnection(map, true);
-			ft_logs("Client timeout");
+			// ft_logs("Client timeout");
 		}
 		else
 			it++;
@@ -174,7 +174,7 @@ void server::CheckTimestamp(void) {
 int server::ConfigureServer(void)
 {
 	const int opt = 1;
-	ft_logs("Web server started");
+	// ft_logs("Web server started");
 	if (!this->f) {
 		ft_error("getprotobyname failed");
 		return (-1);

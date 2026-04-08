@@ -17,14 +17,14 @@
 
 Client::Client(int socket_fd, struct config* setConfig) : fd(socket_fd), timestamp(time(NULL)), headerFound(false), pos(0), bytesSent(0), socklenClient(0), headerBuffer(""), headerBody(""), _request(), _response(), config(setConfig) {
 	memset(&this->sockaddrClient, 0, sizeof(this->sockaddrClient));
-	ft_logs("A new client has been created");
+	// ft_logs("A new client has been created");
 	return;
 }
 
 //Destructor
 
 Client::~Client(void) {
-	ft_logs("A client has requested to close the connection after his request, deleting client socket");
+	// ft_logs("A client has requested to close the connection after his request, deleting client socket");
 	return ;
 }
 
@@ -56,7 +56,7 @@ void Client::ReceiveHeader(int& fdQueue, std::map<int, Client*>& map) {
 			std::string& content = this->_request.getPairs()["Content-Length:"];
 			if (transferEncoding == "chunked") {
 				if (this->headerBody.find("0\r\n\r\n") != std::string::npos) {
-					ft_logs("here 2");
+					// ft_logs("here 2");
 					std::cout << this->_request.getPairs()["Method:"] << std::endl;
 					this->headerBody.clear();
 					this->_request.SetBody(this->headerBody);
@@ -75,7 +75,7 @@ void Client::ReceiveHeader(int& fdQueue, std::map<int, Client*>& map) {
 				int	max_body_size = this->config->maxBodySize;
 				std::cout << "content_length = " << content_length << " max_body_size = " << max_body_size << std::endl;
 				if (content_length > max_body_size) {
-					ft_logs("Body too large!");
+					// ft_logs("Body too large!");
 					this->_request.SetError(BODY_TOO_LARGE);
 					ChangeEpollState(fdQueue, true);
 					return ;
@@ -95,7 +95,7 @@ void Client::ReceiveHeader(int& fdQueue, std::map<int, Client*>& map) {
 			std::string& transferEncoding = this->_request.getPairs()["Transfer-Encoding:"];
 			if (transferEncoding == "chunked") {
 				if (this->headerBody.find("0\r\n\r\n") != std::string::npos) {
-					ft_logs("here 2");
+					// ft_logs("here 2");
 					std::cout << this->_request.getPairs()["Method:"] << std::endl;
 					this->headerBody.clear();
 					this->_request.SetBody(this->headerBody);
