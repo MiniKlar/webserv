@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/03/02 00:26:06 by lomont            #+#    #+#             */
-/*   Updated: 2026/04/07 22:44:31 by lomont           ###   ########.fr       */
+/*   Updated: 2026/04/08 01:17:52 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -18,29 +18,26 @@
 Client::Client(int socket_fd, struct config* setConfig) : fd(socket_fd), timestamp(time(NULL)), headerFound(false), pos(0), bytesSent(0), socklenClient(0), headerBuffer(""), headerBody(""), _request(), _response(), config(setConfig) {
 	memset(&this->sockaddrClient, 0, sizeof(this->sockaddrClient));
 	ft_logs("A new client has been created");
-	return;
 }
 
 //Destructor
 
 Client::~Client(void) {
 	ft_logs("A client has requested to close the connection after his request, deleting client socket");
-	return ;
 }
 
 void Client::ReceiveHeader(int& fdQueue, std::map<int, Client*>& map) {
 	char			buffer[4096];
 
 	ssize_t received = recv(this->fd, buffer, sizeof(buffer) - 1, 0);
-	if (received == -1) {
-		InternalError(fdQueue);
+	if (received <= 0) {
+		if (received == 0)
+			CloseConnection(map, true);
+		else
+			InternalError(fdQueue);
 		return ;
 	}
-	else if (received == 0) {
-		CloseConnection(map, true);
-		return ;
-	}
-	else if (received > 0) {
+	else {
 		if (!headerFound) {
 			this->headerBuffer.append(buffer, received);
 			size_t xpos = this->headerBuffer.find("\r\n\r\n");
@@ -113,85 +110,6 @@ void Client::ReceiveHeader(int& fdQueue, std::map<int, Client*>& map) {
 	}
 }
 
-// void Client::ReceiveHeader(int& fdQueue, std::map<int, Client*>& map) {
-// 	char			buffer[4096];
-// 	ssize_t			received;
-// 	size_t			index;
-// 	size_t			xpos;
-// 	unsigned long	contentSize;
-
-// 	received = recv(this->fd, buffer, sizeof(buffer) - 1, 0);
-// 	if (received == -1) {
-// 		InternalError(fdQueue);
-// 		return ;
-// 	}
-// 	else if (received == 0) {
-// 		CloseConnection(map, true);
-// 		return ;
-// 	}
-// 	else if (received > 0) {
-// 		if (!headerFound) {
-// 			this->headerBuffer.append(buffer, received);
-// 			xpos = this->headerBuffer.find("\r\n\r\n");
-// 			if (xpos != std::string::npos) {
-// 				headerFound = true;
-// 				headerBody = this->headerBuffer.substr(xpos + 4, xpos + 4 - this->headerBuffer.length());
-// 				headerBuffer.resize(xpos + 4);
-// 				this->_request = HeaderRequest(this->headerBuffer);
-// 			}
-// 			pos += headerBody.length();
-// 			std::map<std::string, std::string>& pairs = this->_request.getPairs();
-// 			if (pairs.find("Content-Length:") != pairs.end()) {
-// 				std::cout << pairs.find("Content-Length:")->second << std::endl;
-// 				if (strtol(pairs.find("Content-Length:")->second.c_str(), NULL, 10) == 0) {
-// 					ft_logs("ici");
-// 					std::cout << "strtol result= " << strtol(pairs.find("Content-Length:")->second.c_str(), NULL, 10) << std::endl;
-// 					ChangeEpollState(fdQueue, true);
-// 					return ;
-// 				}
-// 				if (pos >= strtol(pairs.find("Content-Length:")->second.c_str(), NULL, 10)) {
-// 					this->_request.SetBody(this->headerBody);
-// 					ChangeEpollState(fdQueue, true);
-// 					return ;
-// 				}
-// 			}
-// 			else {
-// 				ChangeEpollState(fdQueue, true);
-// 				return ;
-// 			}
-// 		}
-// 		else {
-// 			std::map<std::string, std::string>& pairs = this->_request.getPairs();
-// 			if (this->_request.GetError() == BODY_TOO_LARGE)
-// 				return ;
-// 			if (this->headerBody.empty()) {
-// 				index = this->headerBuffer.find("\r\n\r\n");
-// 				this->headerBody = this->headerBuffer.substr(index + 4, headerBuffer.length() - (index + 4));
-// 				pos += headerBody.size();
-// 				this->headerBuffer.erase(index + 4, headerBuffer.length() - (index + 4));
-// 			}
-// 			if (pairs.find("Content-Length:") != pairs.end()) {
-// 				contentSize = strtol(pairs.find("Content-Length:")->second.c_str(), NULL, 10);
-// 				if (contentSize > this->config->maxBodySize) {
-// 					this->headerBody.clear();
-// 					this->_request.SetError(BODY_TOO_LARGE);
-// 					ChangeEpollState(fdQueue, true);
-// 					return ;
-// 				}
-// 				this->pos += received;
-// 				this->headerBody.append(buffer, received);
-// 				if (static_cast<unsigned long>(this->pos) == contentSize) {
-// 					this->_request.SetBody(this->headerBody);
-// 					ChangeEpollState(fdQueue, true);
-// 				}
-// 			}
-// 			else if (this->_request.GetMethod() == POST)
-// 				this->_request.SetError(LENGTH);
-// 		}
-// 	}
-// 	return ;
-// }
-
 void	Client::ResponseToClient(std::map<int, Client*>& map, int& fdQueue, struct config* config) {
 	std::cout << "body size = " << this->_request.GetBody().size() << std::endl;
 	if (this->_response.IsParsed() == false)
@@ -219,11 +137,6 @@ void	Client::ResponseToClient(std::map<int, Client*>& map, int& fdQueue, struct 
 
 void Client::RefreshTimestamp(void) {
 	this->timestamp = time(NULL);
-	return ;
-}
-
-int Client::GetTime(void) {
-	return (this->timestamp);
 }
 
 void Client::CleanClient(void) {
@@ -234,14 +147,12 @@ void Client::CleanClient(void) {
 	this->headerBuffer.clear();
 	this->headerFound = false;
 	this->pos = 0;
-	return ;
 }
 
 void Client::ResizeBuffer(std::string& str) {
 	str.erase(0, this->bytesSent);
 	this->_response.SetBuffer(str);
 	bytesSent = 0;
-	return ;
 }
 
 void Client::CloseConnection(std::map<int, Client*>& map, bool deleteFromMap) {
@@ -249,7 +160,6 @@ void Client::CloseConnection(std::map<int, Client*>& map, bool deleteFromMap) {
 		map.erase(fd);
 	close(this->fd);
 	delete this;
-	return ;
 }
 
 void Client::ChangeEpollState(int& fdQueue, bool disableRead) {
@@ -271,12 +181,9 @@ void Client::InternalError(int& fdQueue) {
 }
 
 //Getters
-struct sockaddr* Client::getsockaddrClient(void) {
-	return (&this->sockaddrClient);
-}
 
-socklen_t* Client::getSockLenClient(void) {
-	return (&this->socklenClient);
+int Client::GetTime(void) {
+	return this->timestamp;
 }
 
 //Setters

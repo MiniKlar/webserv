@@ -35,15 +35,12 @@ class Client
 
 		//getters
 		int						GetTime(void);
-		socklen_t*				getSockLenClient(void);
-		struct sockaddr* 		getsockaddrClient(void);
 
 		//setters
 		void					SetSockaddrClient(struct sockaddr);
 		void					SetSockLenClient(socklen_t);
 
 		//member functions
-		bool					CheckErrors(std::string&);
 		void					ReceiveHeader(int&, std::map<int, Client*>& map);
 		void					ResponseToClient(std::map<int, Client*>&, int&, struct config*);
 		void					ChangeEpollState(int&, bool);

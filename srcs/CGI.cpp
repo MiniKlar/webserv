@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/06 23:24:12 by lomont            #+#    #+#             */
-/*   Updated: 2026/04/07 00:05:48 by lomont           ###   ########.fr       */
+/*   Updated: 2026/04/08 01:19:27 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -25,25 +25,25 @@ std::string HeaderResponse::get_exec(std::string path) {
 	file.open(path.c_str());
 	if (!file.is_open()) {
 		ft_warning("Can't open script");
-		return ("");
+		return "";
 	}
 	std::getline(file, line);
 	if (line[0] != '#' || line[1] != '!')
-		return ("");
+		return "";
 	else {
 		line.erase(0,2);
 		size_t pos = line.find_first_not_of(" \r\t");
 		if (pos != std::string::npos)
 			line = line.substr(pos);
 	}
-	return (line);
+	return line;
 }
 
 std::string HeaderResponse::get_query_string(std::string uri) {
 	size_t pos = uri.find("?");
 	if (pos != std::string::npos)
-		return (uri.substr(pos + 1));
-	return ("");
+		return uri.substr(pos + 1);
+	return "";
 }
 
 char** HeaderResponse::create_env(HeaderRequest& request, std::string& path) {
@@ -65,12 +65,12 @@ char** HeaderResponse::create_env(HeaderRequest& request, std::string& path) {
 		tmp_env[5].append(path);
 	envp = new char*[7 + 1];
 	if (!envp)
-		return (NULL);
+		return NULL;
 	for (int i = 0; i < 7; i++) {
 		envp[i] = strdup(tmp_env[i].c_str());
 		if (!envp[i]) {
 			free_envp(envp);
-			return (NULL);
+			return NULL;
 		}
 	}
 	envp[7] = NULL;
@@ -86,20 +86,20 @@ char** HeaderResponse::create_args(char* path)
 	script_path = "." + script_path.substr(script_path.find("=") + 1, script_path.length() - script_path.find("="));
 	tmp_args[0] = get_exec(this->pathfile);
 	if (tmp_args[0].empty())
-		return (NULL);
+		return NULL;
 	tmp_args[1] = script_path;
 	args = new char*[2 + 1];
 	if (!args)
-		return (NULL);
+		return NULL;
 	for (int i = 0; i < 2; i++) {
 		args[i] = strdup(tmp_args[i].c_str());
 		if (!args[i]) {
 			free_args(args);
-			return (NULL);
+			return NULL;
 		}
 	}
 	args[2] = NULL;
-	return (args);
+	return args;
 }
 
 std::string HeaderResponse::PerformCGI()
@@ -114,19 +114,19 @@ std::string HeaderResponse::PerformCGI()
 	char** envp = create_env(this->request, this->pathfile);
 	if (!envp) {
 		SetResponseError(INTERNAL);
-		return ("");
+		return "";
 	}
 	char** args = create_args(envp[5]);
 	if (!args) {
 		free_envp(envp);
 		SetResponseError(INTERNAL);
-		return ("");
+		return "";
 	}
 	if (pipe(pipe_out) == -1 || pipe(pipe_in) == -1) {
 		free_envp(envp);
 		free_args(args);
 		SetResponseError(INTERNAL);
-		return ("");
+		return "";
 	}
 	if (!is_post) {
 		close(pipe_in[0]);
@@ -167,7 +167,7 @@ std::string HeaderResponse::PerformCGI()
 	free_envp(envp);
 	free_args(args);
 	close(pipe_out[0]);
-	return (buffer);
+	return buffer;
 }
 
 bool HeaderResponse::is_timeout(const timeval& start, int sec_limit)
@@ -175,7 +175,7 @@ bool HeaderResponse::is_timeout(const timeval& start, int sec_limit)
     timeval	now;
 
     gettimeofday(&now, NULL);
-    return (now.tv_sec - start.tv_sec > sec_limit);
+    return now.tv_sec - start.tv_sec > sec_limit;
 }
 
 std::string HeaderResponse::read_cgi_output_with_timeout(int fd, pid_t pid, int timeout_sec)
@@ -191,14 +191,14 @@ std::string HeaderResponse::read_cgi_output_with_timeout(int fd, pid_t pid, int 
         if (n > 0)
             buffer.append(buf, n);
         else if (n == -1 && errno != EAGAIN)
-            return ("");
+            return "";
 
         int ret = waitpid(pid, NULL, WNOHANG);
         if (ret == pid)
         {
             while ((n = read(fd, buf, sizeof(buf))) > 0)
                 buffer.append(buf, n);
-            return (buffer);
+            return buffer;
         }
 
         if (is_timeout(start, timeout_sec))
@@ -206,7 +206,7 @@ std::string HeaderResponse::read_cgi_output_with_timeout(int fd, pid_t pid, int 
             kill(pid, SIGKILL);
             waitpid(pid, NULL, 0);
             ft_warning("CGI script killed due to timeout");
-            return ("");
+            return "";
         }
         usleep(10000);
     }
@@ -216,12 +216,10 @@ static void free_envp(char** envp) {
 	for (int i = 0; envp[i]; i++)
 		free (envp[i]);
 	delete[] envp;
-	return ;
 }
 
 static void free_args(char** args) {
 	for (int i = 0; args[i]; i++)
 		free (args[i]);
 	delete[] args;
-	return ;
 }

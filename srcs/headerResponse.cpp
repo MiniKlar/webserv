@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/05 22:42:38 by lomont            #+#    #+#             */
-/*   Updated: 2026/04/08 00:58:22 by lomont           ###   ########.fr       */
+/*   Updated: 2026/04/08 01:17:40 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -18,18 +18,15 @@
 HeaderResponse::HeaderResponse(HeaderRequest& setRequest, struct config* setConfig) : cookie(false), error(false), parsed(false), isCGI(false), bodySize(0), indexLocationConfig(0), header(""), buffer(""), bodySizePrint("0"), pathfile(""), config(setConfig), request(setRequest){
 	//Create the HeaderResponse depending the method and/or the file is a CGI
 	CreateResponse();
-	return ;
 }
 
 HeaderResponse::HeaderResponse(void) : cookie(false), error(false), parsed(false), isCGI(false), bodySize(0), indexLocationConfig(0), header(""), buffer(""), bodySizePrint(""), pathfile(""), config(NULL), request(HeaderRequest()) {
-	return ;
 }
 
 //Copy constructor & copy assignement
 
 HeaderResponse::HeaderResponse(const HeaderResponse& other) {
 	*this = other;
-	return ;
 }
 
 HeaderResponse& HeaderResponse::operator=(const HeaderResponse& other) {
@@ -52,7 +49,6 @@ HeaderResponse& HeaderResponse::operator=(const HeaderResponse& other) {
 //Destructor
 
 HeaderResponse::~HeaderResponse(void) {
-	return;
 }
 
 //Member functions
@@ -139,7 +135,6 @@ void HeaderResponse::HandleCGI(void) {
     this->header += "Content-Length: " + this->bodySizePrint + "\r\n";
 	this->header += cgi_headers;
 	parsed = true;
-	return ;
 }
 
 void HeaderResponse::HandleGet(void) {
@@ -190,7 +185,6 @@ void HeaderResponse::HandleGet(void) {
 	SetFileSize(); //Trouver et set la taille du fichier qu'on va renvoyer
 	if (!this->error) //S'il n'y a pas eu d'erreur, alors on peut essayer d'ouvrir le fichier
 		OpenFile();
-	return ;
 }
 
 void HeaderResponse::HandleAutoIndex(void) {
@@ -214,7 +208,6 @@ void HeaderResponse::HandleAutoIndex(void) {
 void HeaderResponse::HandleDelete(void) {
 	FindPathFile();
 	DeleteFile();
-	return ;
 }
 
 void HeaderResponse::HandlePost(void) {
@@ -229,7 +222,6 @@ void HeaderResponse::HandlePost(void) {
 		return ;
 	}
 	ParseBody();
-	return ;
 }
 
 void HeaderResponse::DeleteFile(void) {
@@ -242,7 +234,6 @@ void HeaderResponse::DeleteFile(void) {
 		return;
 	}
 	ft_logs("File deleted");
-	return ;
 }
 
 void HeaderResponse::SearchErrorPage(void) {
@@ -318,7 +309,6 @@ void HeaderResponse::GetHeaderResponse(void) {
 		this->header = code_201();
 	else if (method == DELETE)
 		this->header = code_204();
-	return ;
 }
 
 void HeaderResponse::OpenFile(void) {
@@ -356,7 +346,6 @@ void HeaderResponse::OpenFile(void) {
 	close(file);
 	this->buffer.append(buffer, bread);
 	delete[] buffer;
-	return;
 }
 
 //This function searches if a pathname is available, or it finds the oldest file to overwrite it
@@ -493,7 +482,6 @@ void HeaderResponse::CheckMethod(void) {
 			error = true;
 		}
 	}
-	return;
 }
 
 void HeaderResponse::CleanHeader(void) {
@@ -520,7 +508,6 @@ void HeaderResponse::FindPathFile(void) {
 	}
 	this->pathfile = root + str;
 	std::cout << "voici le pathfile found = " << this->pathfile << std::endl;
-	return ;
 }
 
 std::string HeaderResponse::CheckErrors(void) {
@@ -588,18 +575,18 @@ std::string HeaderResponse::GetMethodAllowed(void) {
 				methods += " ";
 		}
 	}
-	return (methods);
+	return methods;
 }
 
 std::string HeaderResponse::GetMaxBodySize(void) {
 	std::ostringstream oss;
 
 	oss << this->config->maxBodySize;
-	return (oss.str());
+	return oss.str();
 }
 
 bool HeaderResponse::IsParsed(void) {
-	return (this->parsed);
+	return this->parsed;
 }
 
 std::string HeaderResponse::GetCurrentTime( void ) {
@@ -612,18 +599,17 @@ std::string HeaderResponse::GetCurrentTime( void ) {
 		std::cerr << "error time" << std::endl;
 		exit(15);
 	}
-	return (std::string(ptr));
+	return std::string(ptr);
 }
 
 std::string HeaderResponse::GetNewLocation(void) {
-	return (this->config->locationConfig[indexLocationConfig]._return.second);
+	return this->config->locationConfig[indexLocationConfig]._return.second;
 }
 
 //Setters
 
 void HeaderResponse::SetBuffer(std::string str) {
 	this->buffer = str;
-	return ;
 }
 
 void HeaderResponse::SetFileSize(void) {
@@ -651,7 +637,6 @@ void HeaderResponse::SetFileSize(void) {
 		oss << s.st_size;
 		bodySizePrint = oss.str();
 	}
-	return ;
 }
 
 std::string HeaderResponse::PerformListing(std::string& path) {
@@ -690,12 +675,11 @@ std::string HeaderResponse::PerformListing(std::string& path) {
 	}
 	closedir(directory);
 	buffer = ss.str();
-	return (buffer);
+	return buffer;
 }
 
 void HeaderResponse::SetResponseError(Error err) {
 	this->error = true;
 	this->request.SetError(err);
 	this->pathfile = "ERROR";
-	return ;
 }
