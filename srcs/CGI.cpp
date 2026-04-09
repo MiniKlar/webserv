@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   CGI.cpp                                            :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
+/*   By: banne <banne@student.42.fr>                +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/06 23:24:12 by lomont            #+#    #+#             */
-/*   Updated: 2026/04/07 00:05:48 by lomont           ###   ########.fr       */
+/*   Updated: 2026/04/09 12:51:04 by banne            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -123,8 +123,7 @@ std::string HeaderResponse::PerformCGI()
 		return ("");
 	}
 	if (pipe(pipe_out) == -1 || pipe(pipe_in) == -1) {
-		free_envp(envp);
-		free_args(args);
+		free_all(envp, args);
 		SetResponseError(INTERNAL);
 		return ("");
 	}
@@ -146,8 +145,7 @@ std::string HeaderResponse::PerformCGI()
 		pathfile.resize(pathfile.find_last_of("/"));
         chdir(this->pathfile.c_str());
         if (execve(args[0], args, envp) == -1) {
-			free_envp(envp);
-			free_args(args);
+			free_all(envp, args);
 			close(pipe_in[0]);
 			close(pipe_out[1]);
 		}
@@ -164,8 +162,7 @@ std::string HeaderResponse::PerformCGI()
 		fcntl(pipe_out[0], F_SETFL | O_NONBLOCK);
 		buffer = read_cgi_output_with_timeout(pipe_out[0], pid, 20);
     }
-	free_envp(envp);
-	free_args(args);
+	free_all(envp, args);
 	close(pipe_out[0]);
 	return (buffer);
 }
@@ -210,6 +207,12 @@ std::string HeaderResponse::read_cgi_output_with_timeout(int fd, pid_t pid, int 
         }
         usleep(10000);
     }
+}
+
+static void free_all(char **envp, char **args)
+{
+	free_args(args);
+	free_envp(envp);
 }
 
 static void free_envp(char** envp) {
