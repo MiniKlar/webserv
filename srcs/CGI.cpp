@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   CGI.cpp                                            :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
+/*   By: lomont <lomont@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/06 23:24:12 by lomont            #+#    #+#             */
-/*   Updated: 2026/04/08 01:19:27 by lomont           ###   ########.fr       */
+/*   Updated: 2026/04/09 22:25:59 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -16,17 +16,51 @@
 static void free_envp(char**);
 static void free_args(char**);
 
-std::string HeaderResponse::get_exec(std::string path) {
-	std::string		line;
-	std::ifstream	file;
+void HeaderResponse::HandleCGI(void) {
+	FindPathFile();
+	std::string buffer = PerformCGI();
+	if (buffer.empty()) {
+		this->error = true;
+		this->request.SetError(INTERNAL);
+		pathfile = "ERROR";
+		return ;
+	}
+	size_t pos = buffer.find("\r\n\r\n");
+	if (pos == std::string::npos) {
+		this->error = true;
+		this->request.SetError(INTERNAL);
+		pathfile = "ERROR";
+		return ;
+	}
+	pos += 4;
 
+	std::string	cgi_headers = buffer.substr(0, pos);
+	this->buffer = buffer.substr(pos);
+
+	this->bodySize = this->buffer.size();
+	std::ostringstream oss;
+	oss << bodySize;
+	this->bodySizePrint = oss.str();
+
+	std::string			header;
+	this->header = "HTTP/1.1 200 OK\r\n";
+    this->header += "Date: " + this->GetCurrentTime() + "\r\n";
+    this->header += "Server: Webserv\r\n";
+    this->header += "Content-Length: " + this->bodySizePrint + "\r\n";
+	this->header += cgi_headers;
+	parsed = true;
+}
+
+std::string HeaderResponse::get_exec(std::string path) {
 	if (*path.begin() != '.')
 		path = "." + path;
+	std::ifstream	file;
 	file.open(path.c_str());
 	if (!file.is_open()) {
 		ft_warning("Can't open script");
 		return "";
 	}
+	std::string line;
 	std::getline(file, line);
 	if (line[0] != '#' || line[1] != '!')
 		return "";
@@ -47,15 +81,14 @@ std::string HeaderResponse::get_query_string(std::string uri) {
 }
 
 char** HeaderResponse::create_env(HeaderRequest& request, std::string& path) {
-	char**				envp;
-	std::ostringstream	oss;
-	std::string			tmp_env[7] = {"REQUEST_METHOD=", "QUERY_STRING=", "SCRIPT_NAME=", "CONTENT_LENGTH=", "CONTENT_TYPE=", "SCRIPT_FILENAME=", "REDIRECT_STATUS=200"};
+	std::string	tmp_env[7] = {"REQUEST_METHOD=", "QUERY_STRING=", "SCRIPT_NAME=", "CONTENT_LENGTH=", "CONTENT_TYPE=", "SCRIPT_FILENAME=", "REDIRECT_STATUS=200"};
 
 	tmp_env[0].append(request.getPairs()["Method:"]);
 	tmp_env[1].append(get_query_string(request.getPairs()["Request-Target:"]));
 	if (path.find("?") != std::string::npos)
 		path.resize(path.find("?"));
 	tmp_env[2].append(request.getPairs()["Request-Target:"]);
+	std::ostringstream	oss;
 	oss << request.GetBody().length();
 	tmp_env[3].append(oss.str());
 	tmp_env[4].append(request.getPairs()["Content-Type:"]);
@@ -63,7 +96,7 @@ char** HeaderResponse::create_env(HeaderRequest& request, std::string& path) {
 		tmp_env[5].append(path.substr(path.find_last_of("/"), path.size() - pathfile.find_last_of("/")));
 	else
 		tmp_env[5].append(path);
-	envp = new char*[7 + 1];
+	char** envp = new char*[7 + 1];
 	if (!envp)
 		return NULL;
 	for (int i = 0; i < 7; i++) {
@@ -79,16 +112,15 @@ char** HeaderResponse::create_env(HeaderRequest& request, std::string& path) {
 
 char** HeaderResponse::create_args(char* path)
 {
-	char**		args;
 	std::string tmp_args[2];
-	std::string script_path(path);
 
-	script_path = "." + script_path.substr(script_path.find("=") + 1, script_path.length() - script_path.find("="));
 	tmp_args[0] = get_exec(this->pathfile);
 	if (tmp_args[0].empty())
 		return NULL;
+	std::string script_path(path);
+	script_path = "." + script_path.substr(script_path.find("=") + 1, script_path.length() - script_path.find("="));
 	tmp_args[1] = script_path;
-	args = new char*[2 + 1];
+	char** args = new char*[2 + 1];
 	if (!args)
 		return NULL;
 	for (int i = 0; i < 2; i++) {
@@ -102,12 +134,8 @@ char** HeaderResponse::create_args(char* path)
 	return args;
 }
 
-std::string HeaderResponse::PerformCGI()
+std::string HeaderResponse::PerformCGI(void)
 {
-	int			pipe_in[2];
-	int			pipe_out[2];
-	std::string buffer;
-
 	bool is_post = false;
 	if (this->request.GetMethod() == POST)
 		is_post = true;
@@ -122,6 +150,9 @@ std::string HeaderResponse::PerformCGI()
 		SetResponseError(INTERNAL);
 		return "";
 	}
+
+	int	pipe_in[2];
+	int	pipe_out[2];
 	if (pipe(pipe_out) == -1 || pipe(pipe_in) == -1) {
 		free_envp(envp);
 		free_args(args);
@@ -133,6 +164,7 @@ std::string HeaderResponse::PerformCGI()
 		close(pipe_in[1]);
 	}
 	this->pathfile = "." + this->pathfile;
+	std::string	buffer;
     pid_t pid = fork();
     if (pid == 0)
     {
