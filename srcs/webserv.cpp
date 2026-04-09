@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   webserv.cpp                                        :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
+/*   By: lomont <lomont@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/18 23:17:19 by lomont            #+#    #+#             */
-/*   Updated: 2026/04/08 01:35:13 by lomont           ###   ########.fr       */
+/*   Updated: 2026/04/09 18:02:40 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,7 +14,9 @@
 #include "client.hpp"
 
 volatile sig_atomic_t g_stop = 0;
+
 static std::string GetFileBuffer(int fd);
+static size_t GetServerConfigCount(const std::string &buffer);
 
 //Signal function handler
 void handler(int signal) {
@@ -34,7 +36,7 @@ server::server(const std::string &configurationFile) : ServerSocket(NULL), Evene
 
 //Destructor
 server::~server(void) {
-	ft_logs("Server destructor called");
+	ft_logs("Exiting the server...");
 	for (size_t i = 0; i < serverConfigCount; i++)
 			delete[] config[i].locationConfig;
 	delete[] config;
@@ -42,8 +44,7 @@ server::~server(void) {
 	delete[] sa;
 }
 
-void server::ParseServerConfiguration(const std::string &configurationFile)
-{
+void server::ParseServerConfiguration(const std::string &configurationFile) {
 	const char* file = configurationFile.data();
 	int fd = open(file, O_RDONLY);
 	if (fd == -1)
@@ -71,18 +72,25 @@ static std::string GetFileBuffer(int fd)
 	return stringBuffer;
 }
 
+static size_t GetServerConfigCount(const std::string &buffer) {
+	size_t configServerCount = 0;
+
+	for (size_t pos = 0; (pos = buffer.find("server {", pos)) != std::string::npos; ) {
+		pos += 9;
+		configServerCount++;
+	}
+	return configServerCount;
+}
+
 void server::CreateNewClient(int newConnexion, struct sockaddr sockaddrClient, socklen_t socklenClient, int ServerSocket)
 {
-	struct epoll_event e_event;
-
 	int configIndex = FindServerConfig(ServerSocket);
 	Client *new_client = new Client(newConnexion, &this->config[configIndex]);
 	new_client->SetSockaddrClient(sockaddrClient);
 	new_client->SetSockLenClient(socklenClient);
 	map.insert(std::pair<int, Client *>(newConnexion, new_client));
 	fcntl(newConnexion, F_SETFL, O_NONBLOCK);
-	e_event.events = EPOLLIN;
-	e_event.data.fd = newConnexion;
+	struct epoll_event e_event = {EPOLLIN, newConnexion};
 	if (epoll_ctl(this->EvenementQueue, EPOLL_CTL_ADD, newConnexion, &e_event) == -1) {
 		close(newConnexion);
 		map.erase(newConnexion);
@@ -147,25 +155,23 @@ void server::WaitForConnection(void)
 }
 
 void server::CheckTimestamp(void) {
+	time_t _time = time(NULL);
 	std::map<int, Client*>::iterator toDelete;
 
-	time_t _time = time(NULL);
 	for (std::map<int, Client*>::iterator it = this->map.begin(); it != this->map.end();) {
 		if (it->second->GetTime() + 30 < _time) {
 			toDelete = it;
-			it++;
 			toDelete->second->CloseConnection(map, true);
-			ft_logs("Client timeout");
+			ft_logs("Client time-outed");
 		}
-		else
-			it++;
+		it++;
 	};
 }
 
 int server::ConfigureServer(void)
 {
 	const int opt = 1;
-	ft_logs("Web server started");
+	ft_logs("Web server starting...");
 	if (!this->f) {
 		ft_error("getprotobyname failed");
 		return -1;
@@ -216,6 +222,7 @@ int server::ConfigureServer(void)
 			return -1;
 		}
 	}
+	ft_logs("Web server started!");
 	return 0;
 }
 
@@ -237,9 +244,9 @@ void server::fillSockaddrStruct(int index)
 
 int server::findServerSocket(epoll_data_t data)
 {
-	for (size_t i = 0; i < serverConfigCount; i++) {
-		if (data.fd == ServerSocket[i]) {
-			return (ServerSocket[i]);
+	for (size_t i = 0; i < this->serverConfigCount; i++) {
+		if (data.fd == this->ServerSocket[i]) {
+			return this->ServerSocket[i];
 		}
 	}
 	return -1;

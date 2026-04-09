@@ -3,10 +3,10 @@
 #                                                         :::      ::::::::    #
 #    Makefile                                           :+:      :+:    :+:    #
 #                                                     +:+ +:+         +:+      #
-#    By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+         #
+#    By: lomont <lomont@student.42.fr>              +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2026/02/15 23:56:24 by lomont            #+#    #+#              #
-#    Updated: 2026/04/07 00:53:27 by lomont           ###   ########.fr        #
+#    Updated: 2026/04/09 17:50:14 by lomont           ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -35,6 +35,7 @@ SRC = ./srcs/main.cpp \
 	./srcs/parsing.cpp \
 	./srcs/CGI.cpp \
 	./srcs/responseCode.cpp \
+	./srcs/parsing_location.cpp \
 
 OBJ = $(SRC:./srcs/%.cpp=$(OBJ_DIR)/%.o)
 
