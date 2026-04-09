@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   headerRequest.cpp                                  :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
+/*   By: lomont <lomont@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 04:01:30 by lomont            #+#    #+#             */
-/*   Updated: 2026/04/07 22:54:30 by lomont           ###   ########.fr       */
+/*   Updated: 2026/04/09 22:32:10 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,17 +15,14 @@
 
 //Constructor
 
-HeaderRequest::HeaderRequest(void) : error(OK), method(OTHER), body("") {
-	return ;
+HeaderRequest::HeaderRequest(void) : _delete(false), authorized(false), error(OK), method(OTHER), body("") {
 }
 
-HeaderRequest::HeaderRequest(std::string bufferHeader) : authorized(false), error(OK), method(OTHER), body("") {
+HeaderRequest::HeaderRequest(std::string bufferHeader) : _delete(false), authorized(false), error(OK), method(OTHER), body("") {
 	ParseHeaderRequest(bufferHeader);
-	return ;
 }
 
-HeaderRequest::HeaderRequest(Error err) : error(err), method(OTHER), body("") {
-	return ;
+HeaderRequest::HeaderRequest(Error err) : _delete(false), authorized(false), error(err), method(OTHER), body("") {
 }
 
 //Copy constructor & assignement operator
@@ -37,43 +34,36 @@ HeaderRequest::HeaderRequest(const HeaderRequest& other) {
 
 HeaderRequest& HeaderRequest::operator=(const HeaderRequest& other) {
 	if (&other != this) {
-		this->headerPair = other.headerPair;
+		this->_delete = other._delete;
+		this->authorized = other.authorized;
+		this->error = other.error;
 		this->method = other.method;
 		this->body = other.body;
-		this->_delete = other._delete;
-		this->error = other.error;
-		this->authorized = other.authorized;
+		this->headerPair = other.headerPair;
 	}
-	return (*this);
+	return *this;
 }
 
 //Destructor
 
 HeaderRequest::~HeaderRequest(void) {
-	//ne pas oublier de détruire les objets pour libérer la mémoire
-	return ;
 }
 
 
 void HeaderRequest::ParseHeaderRequest(std::string& bufferHeader) {
-	std::pair<std::string, std::string> pair;
-	size_t				pos;
-	size_t				mid;
-	size_t				npos;
-	size_t 				lastPositionToCheck;
-
-	ParseFirstLine(bufferHeader);		//parse la première ligne
+	ParseFirstLine(bufferHeader);
 	if (error != OK)
 		return ;
-	lastPositionToCheck = bufferHeader.find("\r\n\r\n");
+	size_t lastPositionToCheck = bufferHeader.find("\r\n\r\n");
 	if (lastPositionToCheck == std::string::npos) {
 		error = BAD_REQUEST;
 		return ;
 	}
-	pos = bufferHeader.find("\r\n") + 2;
+	size_t pos = bufferHeader.find("\r\n") + 2;
+	std::pair<std::string, std::string>	pair;
 	while (pos < lastPositionToCheck) {
-		mid = bufferHeader.find(" ", pos);
-		npos = bufferHeader.find("\r\n", mid);
+		size_t mid = bufferHeader.find(" ", pos);
+		size_t npos = bufferHeader.find("\r\n", mid);
 		if (pos > npos) {
 			error = BAD_REQUEST;
 			return ;
@@ -96,12 +86,10 @@ void HeaderRequest::ParseHeaderRequest(std::string& bufferHeader) {
 }
 
 void HeaderRequest::ParseFirstLine(std::string& bufferHeader) {
-	std::string			key;
-	std::string			value;
-	size_t				pos;
-	size_t				npos;
-
-	pos = 0;
+	std::string	key;
+	std::string	value;
+	size_t 		pos = 0;
+	size_t 		npos = 0;
 	for (int i = 0; i < 3; i++) {
 		if (i == 2) {
 			pos = bufferHeader.find("/", pos) + 1;
@@ -128,7 +116,6 @@ void HeaderRequest::ParseFirstLine(std::string& bufferHeader) {
 				key = "HTTP:";
 				break;
 		}
-		std::cout << "value =" << value << std::endl;
 		this->headerPair.insert(std::pair<std::string, std::string>(key, value));
 		pos = npos + 1;
 	}
@@ -146,27 +133,27 @@ void HeaderRequest::CleanHeader(void) {
 //Getters
 
 std::map<std::string, std::string>& HeaderRequest::getPairs(void) {
-	return (this->headerPair);
+	return this->headerPair;
 }
 
 std::string HeaderRequest::GetBody(void) {
-	return (this->body);
+	return this->body;
 }
 
 Method HeaderRequest::GetMethod(void) {
-	return (this->method);
+	return this->method;
 }
 
 Error HeaderRequest::GetError(void) {
-	return (this->error);
+	return this->error;
 }
 
 bool HeaderRequest::GetDeleteSocket(void) {
-	return (this->_delete);
+	return this->_delete;
 }
 
 bool HeaderRequest::GetAuthorized(void) {
-	return (this->authorized);
+	return this->authorized;
 }
 
 //Setters
@@ -184,12 +171,10 @@ void HeaderRequest::SetMethod(std::string& method) {
 
 void HeaderRequest::SetError(Error err) {
 	this->error = err;
-	return;
 }
 
 void HeaderRequest::SetBody(std::string str) {
 	this->body = str;
-	return;
 }
 
 void HeaderRequest::SetDeleteRequest(bool to_delete) {
