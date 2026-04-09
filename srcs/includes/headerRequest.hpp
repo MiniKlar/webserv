@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   headerRequest.hpp                                  :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
+/*   By: lomont <lomont@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 04:00:02 by lomont            #+#    #+#             */
-/*   Updated: 2026/04/07 16:27:49 by lomont           ###   ########.fr       */
+/*   Updated: 2026/04/09 21:44:13 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -78,8 +78,8 @@ class HeaderRequest
 
 		//setters
 		void								SetMethod(std::string&);
-		void								SetError(Error err);
-		void								SetBody(std::string str);
+		void								SetError(Error);
+		void								SetBody(std::string);
 		void								SetDeleteRequest(bool);
 };
 
