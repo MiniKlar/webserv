@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/18 23:17:19 by lomont            #+#    #+#             */
-/*   Updated: 2026/04/09 18:02:40 by lomont           ###   ########.fr       */
+/*   Updated: 2026/04/09 22:40:54 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -90,7 +90,9 @@ void server::CreateNewClient(int newConnexion, struct sockaddr sockaddrClient, s
 	new_client->SetSockLenClient(socklenClient);
 	map.insert(std::pair<int, Client *>(newConnexion, new_client));
 	fcntl(newConnexion, F_SETFL, O_NONBLOCK);
-	struct epoll_event e_event = {EPOLLIN, newConnexion};
+	struct epoll_event e_event;
+	e_event.events = EPOLLIN;
+	e_event.data.fd = newConnexion;
 	if (epoll_ctl(this->EvenementQueue, EPOLL_CTL_ADD, newConnexion, &e_event) == -1) {
 		close(newConnexion);
 		map.erase(newConnexion);
@@ -161,10 +163,12 @@ void server::CheckTimestamp(void) {
 	for (std::map<int, Client*>::iterator it = this->map.begin(); it != this->map.end();) {
 		if (it->second->GetTime() + 30 < _time) {
 			toDelete = it;
+			it++;
 			toDelete->second->CloseConnection(map, true);
 			ft_logs("Client time-outed");
 		}
-		it++;
+		else
+			it++;
 	};
 }
 
