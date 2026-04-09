@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   client.cpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
+/*   By: lomont <lomont@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/03/02 00:26:06 by lomont            #+#    #+#             */
-/*   Updated: 2026/04/08 01:17:52 by lomont           ###   ########.fr       */
+/*   Updated: 2026/04/09 21:30:59 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -53,8 +53,6 @@ void Client::ReceiveHeader(int& fdQueue, std::map<int, Client*>& map) {
 			std::string& content = this->_request.getPairs()["Content-Length:"];
 			if (transferEncoding == "chunked") {
 				if (this->headerBody.find("0\r\n\r\n") != std::string::npos) {
-					ft_logs("here 2");
-					std::cout << this->_request.getPairs()["Method:"] << std::endl;
 					this->headerBody.clear();
 					this->_request.SetBody(this->headerBody);
 					ChangeEpollState(fdQueue, true);
@@ -70,7 +68,6 @@ void Client::ReceiveHeader(int& fdQueue, std::map<int, Client*>& map) {
 			else {
 				long content_length = strtol(content.c_str(), NULL, 10);
 				int	max_body_size = this->config->maxBodySize;
-				std::cout << "content_length = " << content_length << " max_body_size = " << max_body_size << std::endl;
 				if (content_length > max_body_size) {
 					ft_logs("Body too large!");
 					this->_request.SetError(BODY_TOO_LARGE);
@@ -92,8 +89,6 @@ void Client::ReceiveHeader(int& fdQueue, std::map<int, Client*>& map) {
 			std::string& transferEncoding = this->_request.getPairs()["Transfer-Encoding:"];
 			if (transferEncoding == "chunked") {
 				if (this->headerBody.find("0\r\n\r\n") != std::string::npos) {
-					ft_logs("here 2");
-					std::cout << this->_request.getPairs()["Method:"] << std::endl;
 					this->headerBody.clear();
 					this->_request.SetBody(this->headerBody);
 					ChangeEpollState(fdQueue, true);
@@ -111,13 +106,10 @@ void Client::ReceiveHeader(int& fdQueue, std::map<int, Client*>& map) {
 }
 
 void	Client::ResponseToClient(std::map<int, Client*>& map, int& fdQueue, struct config* config) {
-	std::cout << "body size = " << this->_request.GetBody().size() << std::endl;
 	if (this->_response.IsParsed() == false)
 		this->_response = HeaderResponse(this->_request, config);
 	std::string str = _response.GetBuffer();
-	std::cout << str.length() << std::endl;
 	bytesSent = send(fd, str.c_str(), str.length(), 0);
-	std::cout << "bytesSent = "<< bytesSent << std::endl;
 	if (bytesSent == -1) {
 		CloseConnection(map, true); //on close la connexion si erreur send
 		return ;
