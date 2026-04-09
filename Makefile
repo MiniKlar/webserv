@@ -6,7 +6,7 @@
 #    By: lomont <lomont@student.42.fr>              +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2026/02/15 23:56:24 by lomont            #+#    #+#              #
-#    Updated: 2026/04/09 17:50:14 by lomont           ###   ########.fr        #
+#    Updated: 2026/04/09 22:20:07 by lomont           ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -36,6 +36,9 @@ SRC = ./srcs/main.cpp \
 	./srcs/CGI.cpp \
 	./srcs/responseCode.cpp \
 	./srcs/parsing_location.cpp \
+	./srcs/handle_get_method.cpp \
+	./srcs/handle_delete_method.cpp \
+	./srcs/handle_post_method.cpp \
 
 OBJ = $(SRC:./srcs/%.cpp=$(OBJ_DIR)/%.o)
 
