@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/06 23:24:12 by lomont            #+#    #+#             */
-/*   Updated: 2026/04/10 19:45:43 by lomont           ###   ########.fr       */
+/*   Updated: 2026/04/10 19:48:39 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,6 +15,7 @@
 
 static void free_envp(char**);
 static void free_args(char**);
+static void free_all(char **, char **);
 
 void HeaderResponse::HandleCGI(void) {
 	FindPathFile();
