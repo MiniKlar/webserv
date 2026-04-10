@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   responseCode.cpp                                   :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
+/*   By: lomont <lomont@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/07 00:52:37 by lomont            #+#    #+#             */
-/*   Updated: 2026/04/08 00:51:07 by lomont           ###   ########.fr       */
+/*   Updated: 2026/04/09 21:44:40 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -76,8 +76,8 @@ std::string HeaderResponse::code_505(void) {
 }
 
 std::string HeaderResponse::default_error_page(Error err) {
-	std::ostringstream	html;
 	std::string			message;
+	std::ostringstream	html;
 
 	switch (err)
 	{

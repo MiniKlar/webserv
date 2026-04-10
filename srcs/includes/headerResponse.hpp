@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   headerResponse.hpp                                 :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
+/*   By: lomont <lomont@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 04:02:32 by lomont            #+#    #+#             */
-/*   Updated: 2026/04/08 00:36:48 by lomont           ###   ########.fr       */
+/*   Updated: 2026/04/09 22:25:37 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -79,12 +79,12 @@ class HeaderResponse
 		void			ParseBody(void);
 		void 			CreateImage(const std::string&, std::string&, std::string&);
 		bool			is_timeout(const timeval&, int);
-		std::string		get_exec(std::string);
-		std::string		get_query_string(std::string);
 		char**			create_env(HeaderRequest&, std::string&);
 		char**			create_args(char*);
+		std::string		get_query_string(std::string);
+		std::string		get_exec(std::string);
 		std::string		FindFileName(void);
-		std::string		PerformCGI();
+		std::string		PerformCGI(void);
 		std::string		PerformListing(std::string&);
 		std::string		CheckErrors(void);
 		std::string		read_cgi_output_with_timeout(int, pid_t, int);

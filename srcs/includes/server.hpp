@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   server.hpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: lomont <lomont@student.42lehavre.fr>       +#+  +:+       +#+        */
+/*   By: lomont <lomont@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/05 12:51:45 by lomont            #+#    #+#             */
-/*   Updated: 2026/04/07 21:49:50 by lomont           ###   ########.fr       */
+/*   Updated: 2026/04/09 17:36:20 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -45,23 +45,9 @@ class server
 
 		//Private member functions
 		int 	FindLocation(const std::string&, size_t&, size_t&, size_t);
-		int		FindOneConfiguration(const std::string &, size_t, struct config *);
-		int		FindErrorPages(const std::string &, size_t &, size_t, struct config *);
-		int		FindMaxBody(const std::string &, struct config *);
 		int		FindServerConfig(int);
-		void	ParsingError(std::string);
 		void 	ParseServerConfiguration(const std::string&);
 		void	ParseServerDeclaration(const std::string&);
-		void	printConfig(struct LocationConfig*);
-		size_t	GetServerConfigCount(const std::string &);
-		size_t 	SearchLastBracket(const std::string &, size_t);
-		size_t	FindMethods(const std::string&, size_t, struct LocationConfig*, size_t&);
-		size_t	FindRoot(const std::string&, size_t, struct LocationConfig*, size_t&);
-		size_t	FindIndex(const std::string&, size_t, struct LocationConfig*, size_t&);
-		size_t	FindAutoIndex(const std::string&, size_t, struct LocationConfig*, size_t&);
-		size_t	FindReturn(const std::string&, size_t, struct LocationConfig*, size_t&);
-		size_t	FindUpload(const std::string&, size_t, struct LocationConfig*, size_t&);
-		size_t	FindCGIPass(const std::string&, size_t, struct LocationConfig*, size_t&);
 	public:
 		//Constructors / Destructors
 		server(const std::string&);
