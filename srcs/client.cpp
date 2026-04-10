@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/03/02 00:26:06 by lomont            #+#    #+#             */
-/*   Updated: 2026/04/10 19:46:48 by lomont           ###   ########.fr       */
+/*   Updated: 2026/04/11 00:20:27 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -69,7 +69,7 @@ void Client::ReceiveHeader(int& fdQueue, std::map<int, Client*>& map) {
 				long content_length = strtol(content.c_str(), NULL, 10);
 				int	max_body_size = this->config->maxBodySize;
 				if (content_length > max_body_size) {
-					// ft_logs("Body too large!");
+					ft_warning("Body too large!");
 					this->_request.SetError(BODY_TOO_LARGE);
 					ChangeEpollState(fdQueue, true);
 					return ;

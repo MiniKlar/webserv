@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/07 00:52:37 by lomont            #+#    #+#             */
-/*   Updated: 2026/04/09 21:44:40 by lomont           ###   ########.fr       */
+/*   Updated: 2026/04/11 00:19:23 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -68,7 +68,7 @@ std::string HeaderResponse::code_500(void) {
 }
 
 std::string HeaderResponse::code_501(void) {
-	return ("HTTP/1.1 501 Not Implemented\r\nDate: " + this->GetCurrentTime() + "\r\nServer: Webserv\r\n\r\n");
+	return ("HTTP/1.1 501 Not Implemented\r\nDate: " + this->GetCurrentTime() + "\r\nServer: Webserv\r\nContent-Length: 0\r\n\r\n");
 }
 
 std::string HeaderResponse::code_505(void) {

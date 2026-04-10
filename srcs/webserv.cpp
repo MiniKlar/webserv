@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/18 23:17:19 by lomont            #+#    #+#             */
-/*   Updated: 2026/04/10 19:45:36 by lomont           ###   ########.fr       */
+/*   Updated: 2026/04/11 00:21:16 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -123,7 +123,6 @@ void server::WaitForConnection(void)
 			ft_warning("Triggered event retrieval error");
 		for (int i = 0; i < nbOfEvents; i++)
 		{ // pour nombres d'events triggered
-			ft_logs("An Event or a few Events have been triggered");
 			int serverSocket = this->findServerSocket(s_event[i].data);
 			if (serverSocket != -1) { // si event est un serveur socket
 				int newConnexion = accept(serverSocket, &sockaddrClient, &socklenClient);
@@ -139,11 +138,11 @@ void server::WaitForConnection(void)
 					continue;
 				current->RefreshTimestamp();
 				if (s_event[i].events == EPOLLIN) {
-					// ft_logs("A client is sending us a request...");
+					ft_logs("A client is sending us a request...");
 					current->ReceiveHeader(this->EvenementQueue, map);
 				}
 				else if (s_event[i].events == EPOLLOUT) {
-					// ft_logs("A client is listening for an answer...");
+					ft_logs("A client is listening for an answer...");
 					current->ResponseToClient(map, this->EvenementQueue, this->config);
 				}
 			}
