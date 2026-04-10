@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 04:02:32 by lomont            #+#    #+#             */
-/*   Updated: 2026/04/09 22:25:37 by lomont           ###   ########.fr       */
+/*   Updated: 2026/04/10 23:58:02 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -76,6 +76,7 @@ class HeaderResponse
 		void			SearchErrorPage(void);
 		void			DeleteFile(void);
 		void			CheckMethod(void);
+		void			MovedLocation(void);
 		void			ParseBody(void);
 		void 			CreateImage(const std::string&, std::string&, std::string&);
 		bool			is_timeout(const timeval&, int);

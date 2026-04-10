@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/05 22:42:38 by lomont            #+#    #+#             */
-/*   Updated: 2026/04/10 19:47:16 by lomont           ###   ########.fr       */
+/*   Updated: 2026/04/11 00:21:32 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -55,15 +55,15 @@ HeaderResponse::~HeaderResponse(void) {
 void HeaderResponse::CreateResponse(void) {
 	FindFileLocation(); //On cherche la location du fichier demandé grâce à son path et aux routes décrites dans le fichier de configuration webserv
 	CheckMethod(); //On check que la méthode est bien implémenté et accepté par la route demandé
-
+	MovedLocation();
 //Selon la route on va choisir les fonctions à utiliser
-	if (isCGI)
+	if (isCGI && this->request.GetError() == false)
 		HandleCGI();
-	else if (this->request.GetMethod() == GET && !isCGI)
+	else if (this->request.GetMethod() == GET && !isCGI && this->request.GetError() == false)
 		HandleGet();
-	else if (this->request.GetMethod() == DELETE)
+	else if (this->request.GetMethod() == DELETE && this->request.GetError() == false)
 		HandleDelete();
-	else if (this->request.GetMethod() == POST && !isCGI)
+	else if (this->request.GetMethod() == POST && !isCGI && this->request.GetError() == false)
 		HandlePost();
 	if (!this->error && !isCGI)
 		GetHeaderResponse();
@@ -130,8 +130,7 @@ void HeaderResponse::FindFileLocation(void) {
 
 void HeaderResponse::CheckMethod(void) {
 	//check si la méthode fait parti des méthodes prises en charge par webserv
-	std::string headerMethod = this->request.getPairs()["Method:"];
-	if (headerMethod != "GET" && headerMethod != "POST" && headerMethod != "DELETE") {
+	if (this->request.GetMethod() == OTHER) {
 		ft_warning("Method not implemented");
 		this->request.SetError(NOT_IMPLEMENTED);
 		error = true;
@@ -140,25 +139,27 @@ void HeaderResponse::CheckMethod(void) {
 	//check si le header est pris en charge par la location
 	bool methodAccepted = false;
 	if (this->config->locationConfig) {
+		std::string headerMethod = this->request.getPairs()["Method:"];
 		std::vector<std::string> methods = this->config->locationConfig[indexLocationConfig].methods;
 		for (std::vector<std::string>::iterator it = methods.begin(); it != methods.end(); it++) {
 			if (*it == headerMethod)
 				methodAccepted = true;
 		}
 		if (!methodAccepted) {
-			if (!this->config->locationConfig[indexLocationConfig].location.empty()) {
-				ft_warning("Location moved permanently");
-				this->request.SetError(MOVED_PERMANENTLY);
-				this->error = true;
-				pathfile = "ERROR";
-			}
-			else {
 				ft_warning("Method not allowed by the route");
 				this->request.SetError(NOT_ALLOWED);
 				this->request.SetDeleteRequest(true);
-			}
-			error = true;
+				error = true;
 		}
+	}
+}
+
+void HeaderResponse::MovedLocation(void) {
+	if (!this->config->locationConfig[indexLocationConfig]._return.second.empty()) {
+		ft_warning("Location moved permanently");
+		this->request.SetError(MOVED_PERMANENTLY);
+		this->error = true;
+		pathfile = "ERROR";
 	}
 }
 
