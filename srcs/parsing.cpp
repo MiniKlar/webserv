@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/04 23:49:51 by lomont            #+#    #+#             */
-/*   Updated: 2026/04/09 17:49:54 by lomont           ###   ########.fr       */
+/*   Updated: 2026/04/15 16:36:27 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -20,25 +20,35 @@ static int FindErrorPages(const std::string &buffer, size_t &positionLastBracket
 static int FindMaxBody(const std::string &buffer, struct config *conf);
 
 
-void server::ParseServerDeclaration(const std::string &buffer) {
+int server::ParseServerDeclaration(const std::string &buffer) {
 	size_t 	pos = 0;
 	size_t 	positionLastBracket = pos;
 
 	this->config = new struct config[serverConfigCount];
 	for (size_t i = 0; i < this->serverConfigCount; i++)
 	{
+		this->config[i].locationConfig = NULL;
 		pos = positionLastBracket;
 		positionLastBracket = SearchLastBracket(buffer, positionLastBracket);
-		if (FindOneConfiguration(buffer, pos, &config[i]) == -1)
+		if (FindOneConfiguration(buffer, pos, &config[i]) == -1) {
 			ParsingError("Error when trying to parse the ip/port for the server to listen", this->config);
-		if (FindErrorPages(buffer, positionLastBracket, pos, &config[i]) == -1)
+			return -1;
+		}
+		if (FindErrorPages(buffer, positionLastBracket, pos, &config[i]) == -1) {
 			ParsingError("Error when trying to parse error pages", this->config);
-		if (FindMaxBody(buffer, &config[i]) == -1)
+			return -1;
+		}
+		if (FindMaxBody(buffer, &config[i]) == -1) {
 			ParsingError("Error when trying to parse the maximum body size that a client can send", this->config);
-		if (FindLocation(buffer, positionLastBracket, i, pos) == -1)
+			return -1;
+		}
+		if (FindLocation(buffer, positionLastBracket, i, pos) == -1) {
 			ParsingError("Error when trying to parse the locations of a server", this->config);
+			return -1;
+		}
 		positionLastBracket += 1;
 	}
+	return 0;
 }
 
 static size_t SearchLastBracket(const std::string &buffer, size_t i) {
@@ -161,7 +171,6 @@ static int FindMaxBody(const std::string &buffer, struct config *conf) {
 static void ParsingError(const std::string& str, struct config* conf) {
 	ft_error(str);
 	ft_free_config(conf);
-	ft_crash("Error when trying to parse the configuration file");
 }
 
 // static void printConfig(struct LocationConfig *conf) {

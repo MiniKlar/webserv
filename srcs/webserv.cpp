@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/18 23:17:19 by lomont            #+#    #+#             */
-/*   Updated: 2026/04/15 02:17:47 by lomont           ###   ########.fr       */
+/*   Updated: 2026/04/15 16:24:59 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -25,9 +25,12 @@ void handler(int signal) {
 }
 
 //Constructor
-server::server(const std::string &configurationFile) : ServerSocket(NULL), EvenementQueue(-1), serverConfigCount(0), f(getprotobyname("TCP")), config(NULL), sa(NULL) {
+server::server(const std::string &configurationFile) : ServerSocket(NULL), EvenementQueue(-1), parsing_error(false), serverConfigCount(0), f(getprotobyname("TCP")), config(NULL), sa(NULL) {
 	ft_logs("Configuring your web server, please wait...");
-	ParseServerConfiguration(configurationFile);
+	if (ParseServerConfiguration(configurationFile) == -1) {
+		this->parsing_error = true;
+		return ;
+	}
 	if (ConfigureServer() == -1)
 		return ;
 	signal(SIGINT, &handler);
@@ -37,31 +40,39 @@ server::server(const std::string &configurationFile) : ServerSocket(NULL), Evene
 //Destructor
 server::~server(void) {
 	ft_logs("Exiting the server...");
-	for (std::map<int, Client*>::iterator it = map.begin(); it != map.end(); it++) {
-		it->second->CloseConnection(map, false);
+	if (parsing_error) {
+		;
 	}
-	map.clear();
-	for (size_t i = 0; i < serverConfigCount; i++) {
-			delete[] config[i].locationConfig;
-			close (ServerSocket[i]);
+	else {
+		for (std::map<int, Client*>::iterator it = map.begin(); it != map.end(); it++) {
+			it->second->CloseConnection(map, false);
+		}
+		map.clear();
+		for (size_t i = 0; i < serverConfigCount; i++) {
+				delete[] config[i].locationConfig;
+				if (ServerSocket[i] != 0)
+					close (ServerSocket[i]);
+		}
+		close(EvenementQueue);
+		if (config)
+			delete[] config;
+		if (ServerSocket)
+			delete[] ServerSocket;
+		if (sa)
+			delete[] sa;
 	}
-	close(EvenementQueue);
-	if (config)
-		delete[] config;
-	if (ServerSocket)
-		delete[] ServerSocket;
-	if (sa)
-		delete[] sa;
 }
 
-void server::ParseServerConfiguration(const std::string &configurationFile) {
+int server::ParseServerConfiguration(const std::string &configurationFile) {
 	const char* file = configurationFile.data();
 	int fd = open(file, O_RDONLY);
 	if (fd == -1)
 		ft_crash("Error when trying to open the configuration file, please check the name of the file and the permissions");
 	std::string fileBuffer = GetFileBuffer(fd);
 	this->serverConfigCount = GetServerConfigCount(fileBuffer);
-	ParseServerDeclaration(fileBuffer);
+	if (ParseServerDeclaration(fileBuffer) == -1)
+		return -1;
+	return 0;
 }
 
 static std::string GetFileBuffer(int fd)
@@ -185,6 +196,7 @@ int server::ConfigureServer(void)
 		return -1;
 	}
 	ServerSocket = new int[serverConfigCount];
+	bzero(ServerSocket, serverConfigCount * sizeof(int));
 	if (!ServerSocket) {
 		ft_error("Memory allocation failed for ServerSocket");
 		return -1;

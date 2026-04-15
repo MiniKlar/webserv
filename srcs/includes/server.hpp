@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/05 12:51:45 by lomont            #+#    #+#             */
-/*   Updated: 2026/04/09 17:36:20 by lomont           ###   ########.fr       */
+/*   Updated: 2026/04/15 16:22:44 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -25,6 +25,7 @@
 #include <cerrno>
 #include <sys/time.h>
 #include <netdb.h>
+#include <strings.h>
 #include "serverConfig.hpp"
 
 class Client;
@@ -34,6 +35,7 @@ class server
 	private:
 		int 					*ServerSocket;
 		int						EvenementQueue;
+		bool					parsing_error;
 		void					fillSockaddrStruct(int);
 		size_t					serverConfigCount;
 		protoent* 				f;
@@ -46,8 +48,8 @@ class server
 		//Private member functions
 		int 	FindLocation(const std::string&, size_t&, size_t&, size_t);
 		int		FindServerConfig(int);
-		void 	ParseServerConfiguration(const std::string&);
-		void	ParseServerDeclaration(const std::string&);
+		int 	ParseServerConfiguration(const std::string&);
+		int		ParseServerDeclaration(const std::string&);
 	public:
 		//Constructors / Destructors
 		server(const std::string&);
