@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/05 22:42:38 by lomont            #+#    #+#             */
-/*   Updated: 2026/04/11 00:21:32 by lomont           ###   ########.fr       */
+/*   Updated: 2026/04/15 02:12:05 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,11 +15,11 @@
 
 //Constructors
 
-HeaderResponse::HeaderResponse(HeaderRequest& setRequest, struct config* setConfig) : cookie(false), error(false), parsed(false), isCGI(false), bodySize(0), indexLocationConfig(0), header(""), buffer(""), bodySizePrint("0"), pathfile(""), config(setConfig), request(setRequest){
+HeaderResponse::HeaderResponse(HeaderRequest& setRequest, struct config* setConfig, server *test) : cookie(false), error(false), parsed(false), isCGI(false), bodySize(0), indexLocationConfig(0), cgi_format(""), header(""), buffer(""), bodySizePrint("0"), pathfile(""), config(setConfig), server_instance(test), request(setRequest){
 	CreateResponse();
 }
 
-HeaderResponse::HeaderResponse(void) : cookie(false), error(false), parsed(false), isCGI(false), bodySize(0), indexLocationConfig(0), header(""), buffer(""), bodySizePrint(""), pathfile(""), config(NULL), request(HeaderRequest()) {
+HeaderResponse::HeaderResponse(void) : cookie(false), error(false), parsed(false), isCGI(false), bodySize(0), indexLocationConfig(0), cgi_format(""), header(""), buffer(""), bodySizePrint(""), pathfile(""), config(NULL), server_instance(NULL), request(HeaderRequest()) {
 }
 
 //Copy constructor & copy assignement
@@ -41,6 +41,8 @@ HeaderResponse& HeaderResponse::operator=(const HeaderResponse& other) {
 		this->isCGI = other.isCGI;
 		this->parsed = other.parsed;
 		this->cookie = other.cookie;
+		this->cgi_format = other.cgi_format;
+		this->server_instance = other.server_instance;
 	}
 	return *this;
 }
@@ -91,6 +93,7 @@ void HeaderResponse::CreateResponse(void) {
 		header.append("Set-Cookie: session_auth=67; Path=/; Max-Age=3600");
 		header.append("\r\n\r\n");
 	}
+	ft_logs(header);
 	buffer = header + buffer;
 	parsed = true;
 }
@@ -266,13 +269,17 @@ void HeaderResponse::FindPathFile(void) {
 	if (error)
 		return ;
 	std::string str = this->request.getPairs()["Request-Target:"];
+	ft_logs(str);
 	std::string uri;
 	std::string root;
 	if (this->config->locationConfig) {
 		uri = this->config->locationConfig[indexLocationConfig].location;
 		root = this->config->locationConfig[indexLocationConfig].root;
 	}
+	ft_logs(uri);
+	ft_logs(root);
 	this->pathfile = root + str;
+	ft_logs(pathfile);
 }
 
 std::string HeaderResponse::CheckErrors(void) {
@@ -305,21 +312,23 @@ std::string HeaderResponse::CheckErrors(void) {
 }
 
 void HeaderResponse::CleanHeader(void) {
-	this->config = NULL;
+
+	this->error = false;
+	this->parsed = false;
+	this->isCGI = false;
+	this->bodySize = 0;
+	this->indexLocationConfig = -1;
+	this->cgi_format.clear();
 	this->header.clear();
 	this->buffer.clear();
 	this->bodySizePrint.clear();
 	this->pathfile.clear();
-	this->indexLocationConfig = -1;
-	this->bodySize = 0;
-	this->error = false;
-	this->parsed = false;
+	this->config = NULL;
 }
 
 //Getters
 
 std::string HeaderResponse::GetContentType(void) {
-	// return (TEXT_TYPE);
 	if (this->pathfile.find(".png") != std::string::npos)
 		return ("image/png");
 	else

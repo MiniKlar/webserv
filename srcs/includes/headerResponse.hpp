@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 04:02:32 by lomont            #+#    #+#             */
-/*   Updated: 2026/04/10 23:58:02 by lomont           ###   ########.fr       */
+/*   Updated: 2026/04/15 02:11:46 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -33,10 +33,12 @@
 #include <fcntl.h>
 #include <sys/time.h>
 #include <string.h>
+#include <map>
 #include "headerRequest.hpp"
 
 struct	config;
 class	HeaderRequest;
+class	server;
 
 class HeaderResponse
 {
@@ -47,18 +49,20 @@ class HeaderResponse
 		bool			isCGI;
 		off_t			bodySize;
 		size_t			indexLocationConfig;
+		std::string		cgi_format;
 		std::string		header;
 		std::string		buffer;
 		std::string		bodySizePrint;
 		std::string		pathfile;
 		struct config	*config;
+		server*			server_instance;
 		HeaderRequest	request;
 	public:
 
 		//Canonical form
 		HeaderResponse(void);
 		HeaderResponse(const HeaderResponse&);
-		HeaderResponse(HeaderRequest&, struct config*);
+		HeaderResponse(HeaderRequest&, struct config*, server*);
 		HeaderResponse& operator=(const HeaderResponse&);
 		~HeaderResponse(void);
 
@@ -76,11 +80,12 @@ class HeaderResponse
 		void			SearchErrorPage(void);
 		void			DeleteFile(void);
 		void			CheckMethod(void);
+		void			FindCGIPathFile(void);
 		void			MovedLocation(void);
 		void			ParseBody(void);
 		void 			CreateImage(const std::string&, std::string&, std::string&);
 		bool			is_timeout(const timeval&, int);
-		char**			create_env(HeaderRequest&, std::string&);
+		char**			create_env(HeaderRequest&);
 		char**			create_args(char*);
 		std::string		get_query_string(std::string);
 		std::string		get_exec(std::string);
