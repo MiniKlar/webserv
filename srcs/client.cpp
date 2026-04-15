@@ -6,12 +6,13 @@
 /*   By: lomont <lomont@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/03/02 00:26:06 by lomont            #+#    #+#             */
-/*   Updated: 2026/04/15 02:12:29 by lomont           ###   ########.fr       */
+/*   Updated: 2026/04/15 17:16:14 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "client.hpp"
 #include "webserv.hpp"
+#include <cstdlib>
 
 //Constructor
 
@@ -24,6 +25,29 @@ Client::Client(int socket_fd, struct config* setConfig) : fd(socket_fd), timesta
 
 Client::~Client(void) {
 	ft_logs("A client has requested to close the connection after his request, deleting client socket");
+}
+
+static std::string UnchunkBody(const std::string& chunkedBody) {
+	std::string unchunked;
+	size_t pos = 0;
+	while (pos < chunkedBody.size()) {
+		size_t crlf = chunkedBody.find("\r\n", pos);
+		if (crlf == std::string::npos) break;
+		
+		std::string hexStr = chunkedBody.substr(pos, crlf - pos);
+		size_t semi = hexStr.find(';');
+		if (semi != std::string::npos) hexStr = hexStr.substr(0, semi);
+		
+		long chunkSize = strtol(hexStr.c_str(), NULL, 16);
+		if (chunkSize <= 0) break;
+		
+		pos = crlf + 2;
+		if (pos + chunkSize > chunkedBody.size()) break;
+		
+		unchunked.append(chunkedBody, pos, chunkSize);
+		pos += chunkSize + 2;
+	}
+	return unchunked;
 }
 
 void Client::ReceiveHeader(int& fdQueue, std::map<int, Client*>& map) {
@@ -53,11 +77,12 @@ void Client::ReceiveHeader(int& fdQueue, std::map<int, Client*>& map) {
 			std::string& content = this->_request.getPairs()["Content-Length:"];
 			if (transferEncoding == "chunked") {
 				if (this->headerBody.find("0\r\n\r\n") != std::string::npos) {
-					this->headerBody.clear();
+					this->headerBody = UnchunkBody(this->headerBody);
 					this->_request.SetBody(this->headerBody);
 					ChangeEpollState(fdQueue, true);
 					return ;
 				}
+				return ;
 			}
 			else if (content.empty()) {
 				if (this->_request.GetMethod() == POST)
@@ -89,7 +114,7 @@ void Client::ReceiveHeader(int& fdQueue, std::map<int, Client*>& map) {
 			std::string& transferEncoding = this->_request.getPairs()["Transfer-Encoding:"];
 			if (transferEncoding == "chunked") {
 				if (this->headerBody.find("0\r\n\r\n") != std::string::npos) {
-					this->headerBody.clear();
+					this->headerBody = UnchunkBody(this->headerBody);
 					this->_request.SetBody(this->headerBody);
 					ChangeEpollState(fdQueue, true);
 				}

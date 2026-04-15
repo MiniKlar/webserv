@@ -65,6 +65,7 @@ void HeaderResponse::HandleCGI(void) {
 std::string HeaderResponse::get_exec(std::string path) {
 	if (*path.begin() != '.')
 		path = "." + path;
+	ft_logs(std::string("get_exec called with path: '") + path + "'");
 	std::ifstream	file;
 	file.open(path.c_str());
 	if (!file.is_open()) {

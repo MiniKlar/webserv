@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/19 04:01:30 by lomont            #+#    #+#             */
-/*   Updated: 2026/04/15 01:31:54 by lomont           ###   ########.fr       */
+/*   Updated: 2026/04/15 17:17:58 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -116,6 +116,8 @@ void HeaderRequest::ParseFirstLine(std::string& bufferHeader) {
 				key = "HTTP:";
 				break;
 		}
+		std::cout << "key = " << key << std::endl;
+		std::cout << "value = " << value << std::endl;
 		this->headerPair.insert(std::pair<std::string, std::string>(key, value));
 		pos = npos + 1;
 	}

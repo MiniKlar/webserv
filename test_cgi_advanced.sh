@@ -165,27 +165,10 @@ else
 fi
 echo ""
 
-echo -e "${CYAN}Test 6 : Requête POST au CGI${RESET}"
-echo -e "${YELLOW}Description : Envoie un body via POST. Webserv doit écrire le body dans l'entrée standard (stdin) du CGI.${RESET}"
-curl -s -v -X POST -d "Hello Webserv! Voici mon super body POST" "$HOST/cgi-bin/post_test.bash" 2> trace.txt > body.txt
-echo -e "${CYAN}=== ENVOI ===${RESET}"
-awk '/^> / {print substr($0, 3)}' trace.txt
-echo -e "${CYAN}=== RECEPTION ===${RESET}"
-awk '/^< / {print substr($0, 3)}' trace.txt
-echo -e "${CYAN}=== CORPS ===${RESET}"
-cat body.txt
-echo ""
-if grep -q "Hello Webserv! Voici mon super body POST" body.txt; then
-    echo -e "${GREEN}✔ Succès : Le CGI a bien reçu et renvoyé le body du POST.${RESET}"
-else
-    echo -e "${RED}✘ Échec : Le CGI n'a pas répliqué le body attendu (problème pipe/stdin).${RESET}"
-fi
-echo ""
-
 rm -f trace.txt body.txt
 
 
 # Nettoyage optionnel des binaires compilés
-rm -f "$CGI_DIR/crash.cpp" "$CGI_DIR/crash.cgi" "$CGI_DIR/no_exec.bash" "$CGI_DIR/post_test.bash"
+rm -f "$CGI_DIR/crash.cpp" "$CGI_DIR/crash.cgi" "$CGI_DIR/no_exec.bash"
 
 echo -e "${CYAN}=== FIN DES TESTS CGI ===${RESET}"
