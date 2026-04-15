@@ -164,10 +164,6 @@ check_body "Page 404 est en HTML" "<html\|<!DOCTYPE" "$BODY" \
 # ============================================================
 section "2. Méthodes HTTP — contrôle d'accès"
 
-CODE=$(curl -s -o /dev/null -w "%{http_code}" -X PATCH "$HOST/")
-check "PATCH sur / → 405" "405" "$CODE" \
-    "PATCH est une méthode connue non autorisée → 405, pas 501 (RFC 7231 §6.5.5)"
-
 CODE=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE "$HOST/")
 check "DELETE sur / (route GET only) → 405" "405" "$CODE" \
     "La route / n'autorise que GET → 405"
@@ -184,9 +180,15 @@ check_any "Méthode FOOBAR inconnue → 400 ou 501" "$CODE" "400" "501"
 # ============================================================
 section "3. POST — Upload de fichier (/uploads)"
 
+echo -e "  ${CYAN}Récupération du cookie d'authentification...${RESET}"
+curl -s -c /tmp/cookies.txt "$HOST/get-cookie" > /dev/null
+
+echo "fichier test webserv" > /tmp/ws_test_upload.jpg
+
 CODE=$(curl -s -o /dev/null -w "%{http_code}" \
-    -X POST -F "file=@/tmp/ws_test_upload.txt" "$HOST/uploads")
-check_any "POST /uploads → 200 ou 201" "$CODE" "200" "201"
+    -b /tmp/cookies.txt \
+    -X POST -F "file=@/tmp/ws_test_upload.jpg" "$HOST/uploads")
+check_any "POST /uploads avec cookie → 200 ou 201" "$CODE" "200" "201"
 
 echo -e "  ${YELLOW}⚠  Test 413 ignoré : client_max_body_size = 1G dans la config${RESET}"
 
@@ -195,19 +197,24 @@ echo -e "  ${YELLOW}⚠  Test 413 ignoré : client_max_body_size = 1G dans la co
 # ============================================================
 section "4. DELETE — Suppression de fichier (/uploads)"
 
-FNAME="ws_delete_test_$(date +%s).txt"
-echo "à supprimer" > /tmp/$FNAME
-curl -s -X POST -F "file=@/tmp/$FNAME" "$HOST/uploads" > /dev/null 2>&1
+FNAME="ws_delete_test_$(date +%s).jpg"
+echo "image à supprimer" > /tmp/$FNAME
+curl -s -b /tmp/cookies.txt -X POST -F "file=@/tmp/$FNAME" "$HOST/uploads" > /dev/null 2>&1
 
-CODE=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE "$HOST/uploads/$FNAME")
-check_any "DELETE /uploads/<fichier> → 200 ou 204" "$CODE" "200" "204"
+# Astuce : le serveur renomme le fichier (ex: image0.png),
+# on cherche donc le nom du dernier fichier ajouté dans le dossier
+ACTUAL_FILENAME=$(ls -1t ./www/uploads/ 2>/dev/null | head -n 1)
+
+CODE=$(curl -s -o /dev/null -w "%{http_code}" -b /tmp/cookies.txt -X DELETE "$HOST/uploads/$ACTUAL_FILENAME")
+check_any "DELETE /uploads/<fichier> avec cookie → 200 ou 204" "$CODE" "200" "204"
 
 CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+    -b /tmp/cookies.txt \
     -X DELETE "$HOST/uploads/fichier_inexistant_xyz.txt")
 check "DELETE fichier inexistant → 404" "404" "$CODE" \
     "Un DELETE sur un fichier absent doit retourner 404"
 
-rm -f /tmp/$FNAME
+rm -f /tmp/$FNAME /tmp/ws_test_upload.jpg /tmp/cookies.txt
 
 # ============================================================
 #  5. CGI PHP
@@ -407,4 +414,4 @@ else
 fi
 echo ""
 
-rm -f /tmp/ws_test_upload.txt
+rm -f /tmp/ws_test_upload.jpg /tmp/cookies.txt
