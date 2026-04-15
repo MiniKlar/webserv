@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/02/18 23:17:19 by lomont            #+#    #+#             */
-/*   Updated: 2026/04/11 00:21:16 by lomont           ###   ########.fr       */
+/*   Updated: 2026/04/15 02:17:47 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -37,11 +37,21 @@ server::server(const std::string &configurationFile) : ServerSocket(NULL), Evene
 //Destructor
 server::~server(void) {
 	ft_logs("Exiting the server...");
-	for (size_t i = 0; i < serverConfigCount; i++)
+	for (std::map<int, Client*>::iterator it = map.begin(); it != map.end(); it++) {
+		it->second->CloseConnection(map, false);
+	}
+	map.clear();
+	for (size_t i = 0; i < serverConfigCount; i++) {
 			delete[] config[i].locationConfig;
-	delete[] config;
-	delete[] ServerSocket;
-	delete[] sa;
+			close (ServerSocket[i]);
+	}
+	close(EvenementQueue);
+	if (config)
+		delete[] config;
+	if (ServerSocket)
+		delete[] ServerSocket;
+	if (sa)
+		delete[] sa;
 }
 
 void server::ParseServerConfiguration(const std::string &configurationFile) {
@@ -113,17 +123,16 @@ Client *server::FindCurrentClient(int fd)
 void server::WaitForConnection(void)
 {
 	struct sockaddr sockaddrClient;
-	epoll_event* s_event = new epoll_event[SIZE_TEVENT];
 	socklen_t socklenClient = sizeof(sockaddrClient);
 	while (!g_stop) // laisser tourner le serveur tout le temps
 	{
 		CheckTimestamp();
-		int nbOfEvents = epoll_wait(this->EvenementQueue, s_event, SIZE_TEVENT, 2000);
+		int nbOfEvents = epoll_wait(this->EvenementQueue, this->tevent, SIZE_TEVENT, 2000);
 		if (nbOfEvents == -1) // si on recoit -1 de kevent alors crash => on stock dans nbOfEvents
 			ft_warning("Triggered event retrieval error");
 		for (int i = 0; i < nbOfEvents; i++)
 		{ // pour nombres d'events triggered
-			int serverSocket = this->findServerSocket(s_event[i].data);
+			int serverSocket = this->findServerSocket(this->tevent[i].data);
 			if (serverSocket != -1) { // si event est un serveur socket
 				int newConnexion = accept(serverSocket, &sockaddrClient, &socklenClient);
 				if (newConnexion == -1) // si accept fail -> crash
@@ -133,25 +142,21 @@ void server::WaitForConnection(void)
 			}
 			else
 			{
-				Client *current = FindCurrentClient(s_event[i].data.fd); // on cherche le client associé au fd retourné par kevent => ce qui veut dire qu'un client nous a contacté
+				Client *current = FindCurrentClient(this->tevent[i].data.fd); // on cherche le client associé au fd retourné par kevent => ce qui veut dire qu'un client nous a contacté
 				if (!current)													  // si on a rien on continue
 					continue;
 				current->RefreshTimestamp();
-				if (s_event[i].events == EPOLLIN) {
+				if (this->tevent[i].events == EPOLLIN) {
 					ft_logs("A client is sending us a request...");
 					current->ReceiveHeader(this->EvenementQueue, map);
 				}
-				else if (s_event[i].events == EPOLLOUT) {
+				else if (this->tevent[i].events == EPOLLOUT) {
 					ft_logs("A client is listening for an answer...");
-					current->ResponseToClient(map, this->EvenementQueue, this->config);
+					current->ResponseToClient(map, this->EvenementQueue, this->config, this);
 				}
 			}
 		}
 	}
-	for (std::map<int, Client*>::iterator it = map.begin(); it != map.end(); it++) {
-		it->second->CloseConnection(map, false);
-	}
-	delete[] s_event;
 	ft_logs("Exiting the web server program properly...");
 }
 
