@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/09 22:12:09 by lomont            #+#    #+#             */
-/*   Updated: 2026/04/09 22:14:57 by lomont           ###   ########.fr       */
+/*   Updated: 2026/04/15 01:53:08 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -85,6 +85,11 @@ void HeaderResponse::CreateImage(const std::string& bufferBody, std::string& bou
 		}
 		write(image_fd, image.data(), image.size());
 		close(image_fd);
-		pathfile = img_filename;
+		std::stringstream oss;
+		oss << image.size();
+		bodySizePrint = oss.str();
+		this->pathfile = img_filename;
+		this->pathfile.erase(pathfile.begin());
+		this->buffer = image;
 	};
 }
