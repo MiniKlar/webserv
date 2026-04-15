@@ -42,7 +42,7 @@ class Client
 
 		//member functions
 		void					ReceiveHeader(int&, std::map<int, Client*>& map);
-		void					ResponseToClient(std::map<int, Client*>&, int&, struct config*);
+		void					ResponseToClient(std::map<int, Client*>&, int&, struct config*, server*);
 		void					ChangeEpollState(int&, bool);
 		void					InternalError(int&);
 		void					CloseConnection(std::map<int, Client*>&, bool);

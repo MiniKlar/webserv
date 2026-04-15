@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/03/02 00:26:06 by lomont            #+#    #+#             */
-/*   Updated: 2026/04/11 00:20:27 by lomont           ###   ########.fr       */
+/*   Updated: 2026/04/15 02:12:29 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -105,9 +105,9 @@ void Client::ReceiveHeader(int& fdQueue, std::map<int, Client*>& map) {
 	}
 }
 
-void	Client::ResponseToClient(std::map<int, Client*>& map, int& fdQueue, struct config* config) {
+void	Client::ResponseToClient(std::map<int, Client*>& map, int& fdQueue, struct config* config, server *test) {
 	if (this->_response.IsParsed() == false)
-		this->_response = HeaderResponse(this->_request, config);
+		this->_response = HeaderResponse(this->_request, config, test);
 	std::string str = _response.GetBuffer();
 	bytesSent = send(fd, str.c_str(), str.length(), 0);
 	if (bytesSent == -1) {
