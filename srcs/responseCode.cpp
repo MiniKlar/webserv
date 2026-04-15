@@ -6,7 +6,7 @@
 /*   By: lomont <lomont@student.42.fr>              +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2026/04/07 00:52:37 by lomont            #+#    #+#             */
-/*   Updated: 2026/04/11 00:19:23 by lomont           ###   ########.fr       */
+/*   Updated: 2026/04/15 01:36:31 by lomont           ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -20,7 +20,7 @@ std::string HeaderResponse::code_200( void ) {
 
 std::string HeaderResponse::code_201(void) {
 	return ("HTTP/1.1 201 Created\r\nDate: "
-	+ this->GetCurrentTime() + "\r\nServer: Webserv\r\nLocation: " + pathfile + "\r\nContent-Type: " + GetContentType() + "\r\nContent-Length: 0\r\n\r\n");
+	+ this->GetCurrentTime() + "\r\nServer: Webserv\r\nLocation: " + pathfile + "\r\nContent-Type: " + GetContentType() + "\r\nContent-Length: " + bodySizePrint + "\r\n\r\n");
 }
 
 std::string HeaderResponse::code_204(void) {
