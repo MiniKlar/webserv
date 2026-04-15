@@ -97,14 +97,14 @@
     </form>
   </div>
 
-  <!-- Test pour la requête POST (post_test.bash) -->
+  <!-- Test pour la requête POST (post_test-main.bash) -->
   <div class="panel">
     <h2>2. Tester le POST</h2>
     <p>Cette requête passera ses données de manière invisible, via le corps (Body) de la requête HTTP.</p>
-    <form action="/cgi-bin/post_test.bash" method="POST" id="form_post">
+    <form action="/cgi-bin/post_test-main.bash" method="POST" id="form_post">
       <label for="script_post">Langage cible :</label>
       <select id="script_post" onchange="document.getElementById('form_post').action = '/cgi-bin/' + this.value;">
-        <option value="post_test.bash">Bash (post_test.bash)</option>
+        <option value="post_test-main.bash">Bash (post_test-main.bash)</option>
         <option value="post_test.php">PHP (post_test.php)</option>
       </select>
 
@@ -116,7 +116,7 @@
 envoyé dans le body
 pour tester le POST.</textarea>
 
-      <button type="submit" class="btn-post">Exécuter post_test.bash (POST)</button>
+      <button type="submit" class="btn-post">Exécuter post_test-main.bash (POST)</button>
     </form>
   </div>
 
